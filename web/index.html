@@ -696,7 +696,7 @@ const render = {
       .map(([k, v]) => `<div><small>${k}</small><span>${v}</span></div>`).join("");
     $("logChk").checked = s.logging.enabled;
     $("logPath").textContent = s.logging.enabled ? s.logging.path : "";
-    $("scorerName").textContent = `Model in use: ${s.scorer.kind === "iforest" ? "trained Isolation Forest" : "demo scorer, a stand-in for Isolation Forest"}.`;
+    $("scorerName").textContent = `Model in use: ${s.scorer.kind === "forest" ? "a random forest trained on real pump data from another rig (SKAB). It learns this pump's normal in the first 2 minutes of running, and the demo scorer covers that time" : s.scorer.kind === "iforest" ? "trained Isolation Forest" : "demo scorer, a stand-in for Isolation Forest"}.`;
   },
 };
 

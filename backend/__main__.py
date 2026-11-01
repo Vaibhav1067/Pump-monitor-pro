@@ -31,7 +31,7 @@ def main():
     ap.add_argument("--mqtt-topic")
     ap.add_argument("--replay-file")
     ap.add_argument("--replay-speed", type=float)
-    ap.add_argument("--model", help="trained Isolation Forest JSON (tools/train_iforest.py)")
+    ap.add_argument("--model", help="trained model JSON (tools/train_skab.py or tools/train_iforest.py)")
     ap.add_argument("--log", action="store_true", help="start with CSV logging enabled")
     ap.add_argument("--host")
     ap.add_argument("--port", type=int)

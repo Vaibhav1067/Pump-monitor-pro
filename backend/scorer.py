@@ -5,6 +5,8 @@ Anomaly scorers. Every scorer maps an ordered feature dict to a score in [0, 1].
                           A transparent stand-in for Isolation Forest.
   IsolationForestScorer - pure-Python inference of a scikit-learn IsolationForest
                           exported to JSON by tools/train_iforest.py.
+  RandomForestScorer    - pure-Python inference of a forest trained on real healthy and
+                          faulty pump runs by tools/train_skab.py.
 
 >>> TRAINED MODEL HOOK: load_scorer() below is the single place where the model is chosen.
 """
@@ -108,11 +110,94 @@ class IsolationForestScorer:
         return max(0.0, min(1.0, s))
 
 
+def learn_baseline(rows, keys, floor_rel, floor_abs):
+    """Per-feature (mean, sd) over this pump's own healthy windows. The sd is floored so a
+    very quiet or quantised sensor cannot turn a tiny change into a huge deviation."""
+    base = {}
+    for k in keys:
+        xs = [r[k] for r in rows]
+        m = sum(xs) / len(xs)
+        sd = math.sqrt(sum((x - m) ** 2 for x in xs) / len(xs))
+        base[k] = (m, max(sd, floor_rel * abs(m), floor_abs))
+    return base
+
+
+def relative(features, base, keys):
+    """Feature vector in units of this pump's own healthy spread, comparable across pumps."""
+    return [(features[k] - base[k][0]) / base[k][1] for k in keys]
+
+
+class RandomForestScorer:
+    """
+    Inference for a forest trained on real healthy and faulty runs by tools/train_skab.py.
+    Format:
+      {"type": "random_forest", "features": [...], "baseline_windows": int,
+       "floor_rel": float, "floor_abs": float,
+       "trees": [{"left": [...], "right": [...], "feature": [...],
+                  "threshold": [...], "p": [...]}, ...],
+       "calibration": {"lo": float, "warn_raw": float, "crit_raw": float,
+                       "warn": 0.3, "crit": 0.6}}
+    The training pump differs from this one, so the forest only ever sees deviations from
+    the running pump's own baseline. That baseline is learned from the first
+    baseline_windows scored windows, and the demo scorer covers that period.
+    """
+    kind = "forest"
+
+    def __init__(self, model, path, cfg):
+        if model.get("type") != "random_forest":
+            raise ValueError("not a random_forest export")
+        self.keys = model["features"]
+        self.trees = model["trees"]
+        self.n_base = model["baseline_windows"]
+        self.floor_rel, self.floor_abs = model["floor_rel"], model["floor_abs"]
+        cal = model["calibration"]
+        self.anchors = [(cal["lo"], 0.0), (cal["warn_raw"], cal["warn"]), (cal["crit_raw"], cal["crit"])]
+        self.name = f"Random forest ({os.path.basename(path)}, {len(self.trees)} trees)"
+        self.fallback = DemoScorer(cfg)
+        self.reset()
+
+    def reset(self):
+        """A different data source is a different pump: learn its baseline again."""
+        self.rows, self.base = [], None
+
+    def raw(self, x):
+        x = [_f32(v) for v in x]
+        total = 0.0
+        for t in self.trees:
+            node = 0
+            left, right = t["left"], t["right"]
+            while left[node] != -1:
+                node = left[node] if x[t["feature"][node]] <= t["threshold"][node] else right[node]
+            total += t["p"][node]
+        return total / len(self.trees)
+
+    def score(self, features):
+        if self.base is None:
+            self.rows.append(features)
+            left = self.n_base - len(self.rows)
+            if left <= 0:
+                self.base = learn_baseline(self.rows, self.keys, self.floor_rel, self.floor_abs)
+                self.rows = []
+            s, extras = self.fallback.score(features)
+            return s, {**extras, "learning_left": max(0, left)}
+        r = self.raw(relative(features, self.base, self.keys))
+        return _calibrate(self.anchors, r), {"raw": r}
+
+
+def _calibrate(anchors, r):
+    (r0, s0), (r1, s1), (r2, s2) = anchors
+    if r <= r1:
+        s = s0 + (s1 - s0) * (r - r0) / (r1 - r0)
+    else:
+        s = s1 + (s2 - s1) * (r - r1) / (r2 - r1)
+    return max(0.0, min(1.0, s))
+
+
 def load_scorer(cfg, log=print):
     # ------------------------------------------------------------------------
     # TRAINED MODEL HOOK
     # Set CONFIG["scorer"]["model_path"] (or pass --model) to a JSON file produced
-    # by tools/train_iforest.py and the Isolation Forest replaces the demo scorer.
+    # by tools/train_skab.py or tools/train_iforest.py and it replaces the demo scorer.
     # To use another runtime (e.g. onnxruntime), add a class with
     # .name, .kind and .score(features) -> (score_0_1, extras) and return it here.
     # ------------------------------------------------------------------------
@@ -120,7 +205,10 @@ def load_scorer(cfg, log=print):
     if path:
         try:
             with open(path, encoding="utf-8") as fh:
-                return IsolationForestScorer(json.load(fh), path)
+                model = json.load(fh)
+            if model.get("type") == "random_forest":
+                return RandomForestScorer(model, path, cfg)
+            return IsolationForestScorer(model, path)
         except (OSError, ValueError, KeyError) as e:
             log(f"[scorer] could not load {path!r} ({e}); falling back to demo scorer")
     return DemoScorer(cfg)

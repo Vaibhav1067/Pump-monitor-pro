@@ -113,9 +113,10 @@ CONFIG = {
         # Demo scorer: D = sqrt(mean(clip(z, ±z_clip)^2)); score = 1 - exp(-(D / d0)^2)
         "d0": 2.0,
         "z_clip": 8.0,
-        # Path to a trained Isolation Forest exported by tools/train_iforest.py.
+        # Path to a trained model: real SKAB pump data (tools/train_skab.py) by default,
+        # or an Isolation Forest (tools/train_iforest.py).
         # None (or a missing file) -> the demo scorer is used.
-        "model_path": None,
+        "model_path": "models/skab_forest.json",
     },
 
     # ------------------------------------------------------------------ status logic

@@ -45,6 +45,8 @@ class Processor:
     # ------------------------------------------------------------------ state
     def reset(self):
         """Forget stream state (on source switch or replay loop). Counters persist."""
+        if hasattr(self.scorer, "reset"):
+            self.scorer.reset()
         self.window.clear()
         self.last_ts = None
         self.last_seq = None

@@ -2,6 +2,7 @@
 __pycache__/
 *.pyc
 logs/*.csv
+data/skab/
 config.local.json
 .claude/
 build/

@@ -199,6 +199,32 @@ the trees to JSON and checks that the pure-Python inference on the Pi matches sc
 anchors so that the same 0.3 / 0.6 bands still apply. The Pi needs no numpy or sklearn.
 `models/iforest.json` in this repo was trained on **simulated** data
 (`data/sample_session.csv`) only to demonstrate the workflow. Retrain it on rig data.
+
+### Default model: random forest trained on real pump data
+
+`models/skab_forest.json` is the default scorer. It was trained on
+[SKAB](https://github.com/waico/SKAB) (Katser & Kozitsin, 2020; GPL-3.0), real healthy and faulty
+runs from another water-pump test rig. The raw CSVs are not in this repo.
+
+```bash
+python tools/fetch_skab.py                                  # data/skab/, 35 CSVs, 4.4 MB
+python tools/train_skab.py --out models/skab_forest.json    # trains, tests, exports
+```
+
+SKAB's pump runs at different values from ours, so the forest only sees deviations from a pump's
+own baseline. It learns that baseline from the first 2 minutes of running after each start of the
+app or change of data source, and the demo scorer covers those 2 minutes. If the pump is already
+faulty in that period, the fault is learned as normal. SKAB has no speed sensor or vibration peak,
+so `rpm_mean` and `vib_peak` are not model inputs. Per-sensor alarms and the fault names still use
+the hand-set values in `config.py`.
+
+Test results on SKAB (whole runs held out, about 1 % of healthy windows allowed over the limit):
+30 of 34 fault runs caught, 5.3 false alarms per hour of healthy running. These describe SKAB's
+pump. **They have not been measured on our pump.** The weakest faults were hot water (0 of 1 runs),
+added water (1 of 2) and cavitation (AUC 0.69). Check it on the rig with
+`tools/replay_eval.py` and safe, deliberate faults. To go back to the formula, set `model_path`
+to `null` in `config.local.json`.
+
 To use another runtime (ONNX etc.), add a class with `.name`, `.kind` and
 `.score(features) -> (score, extras)` and return it from `load_scorer()`.
 
@@ -341,7 +367,8 @@ deploy/    install_pi.sh (Pi setup + boot service + kiosk) · pump-console.servi
 start.bat  Windows one-click launcher · flash.bat  one-click ESP32 flashing · share.bat  public link to this rig
 vercel.json  publishes web/ as a static site on Vercel
 data/      sample_session.csv  (simulated session for replay/training demos)
-models/    iforest.json        (demo model trained on simulated data)
+models/    skab_forest.json    (default model, trained on real SKAB pump data)
+           iforest.json        (demo model trained on simulated data)
 logs/      CSV session logs (git-ignored)
 ```
 
