@@ -26,7 +26,7 @@ sed -e "s|__APP_DIR__|$APP_DIR|g" -e "s|__APP_USER__|$APP_USER|g" deploy/pump-co
   | sudo tee /etc/systemd/system/pump-console.service >/dev/null
 sudo systemctl daemon-reload
 sudo systemctl enable --now pump-console
-chmod +x deploy/kiosk.sh
+chmod +x deploy/kiosk.sh    # a zip download loses the executable bit
 
 if [ "$KIOSK" = 1 ]; then
   echo "==> Kiosk: open the dashboard full-screen at login"

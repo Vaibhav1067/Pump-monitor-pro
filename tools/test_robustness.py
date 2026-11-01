@@ -179,10 +179,17 @@ def test_bad_sensors():
     check(frames[-1]["status"] == "HEALTHY" and frames[-1]["reading"]["pressure_raw"] < -0.3, "missing pressure sensor: monitoring continues and can be flagged")
 
     rig = Rig(forest_cfg())
-    rig.run(140)
+    rig.run(3700)                                   # a long uptime: the old start time is far ahead of the restarted clock
     rig.sim.t_ms = 0                                # ESP32 reset: millis() restarts
     frames = rig.run(20)
-    check(frames[-1]["status"] == "HEALTHY" and not frames[-1]["learning_left"], "ESP32 reboot: keeps running and keeps what it learned")
+    check(frames[-1]["status"] == "HEALTHY" and not frames[-1]["learning_left"], f"ESP32 reboot after an hour: back to monitoring in seconds ({frames[-1]['status']})")
+    rig.sim.set_scenario("blockage")
+    check(any(f["status"] in ALARMS for f in rig.run(30)), "ESP32 reboot after an hour: faults are still caught")
+    rig.sim.set_scenario("normal")
+    rig.run(150)
+    rig.sim.seq, rig.sim.t_ms = 0, 1000             # a brownout mid-fault, like a motor start pulling the supply down
+    rig.sim.set_scenario("overload")
+    check(any(f["status"] in ALARMS for f in rig.run(30)), "ESP32 reboot during a fault: the fault is caught")
 
 
 def test_learning_safety():

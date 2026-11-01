@@ -10,6 +10,8 @@ Follow these in order. It takes about 30 minutes, plus a download on first use.
 
 ## Wiring
 
+**Use a classic ESP32 board** (ESP32-WROOM or ESP32 DevKit). Newer chips such as the S3 and C3 don't have the same pins, so this wiring won't work on them.
+
 | Sensor | Connect to | Notes |
 |---|---|---|
 | ADXL345 vibration | SDA GPIO21, SCL GPIO22, 3.3 V, GND | Bolt it firmly to the pump body |
@@ -45,7 +47,30 @@ Follow these in order. It takes about 30 minutes, plus a download on first use.
 4. **Click once anywhere on the page.** Browsers don't allow alarm sounds until you do.
 5. **Let it learn.** With the pump running normally, it shows **Learning** for 2 minutes. **Only low-water alarms work during this time.**
 
-If the page says **Simulated data**, it is not reading your pump. Check the **Needs attention** panel, which names the problem and the fix.
+If a blue **SIMULATED** banner shows, the numbers are made up and are not from your pump, however healthy they look. The banner names the problem and the fix.
+
+**Before showing anyone,** do one full rehearsal: run the steps above, then partly close the outlet valve and confirm the warning appears and clears. The first run on new hardware is when problems show up.
+
+## On a Raspberry Pi
+
+The ESP32 plugs into the Pi's USB port. The steps above are for Windows, because `.bat` files don't run on a Pi. Use these instead, on Raspberry Pi OS Bookworm or newer.
+
+1. **Load the firmware once.** The easiest way is `flash.bat` on any Windows PC, then move the ESP32 to the Pi.
+2. **Install.** In a terminal on the Pi, in this folder, run:
+   ```
+   bash deploy/install_pi.sh --kiosk
+   ```
+   Leave out `--kiosk` if the Pi has no screen. The app then starts on every boot. Reboot once afterwards so the USB permission applies.
+3. **Check the sensors.** Start the pump, then run:
+   ```
+   sudo systemctl stop pump-console
+   .venv/bin/python tools/check_rig.py
+   sudo systemctl start pump-console
+   ```
+4. **Open the dashboard.** It opens by itself with `--kiosk`. From another device on the same network, go to `http://<pi-address>:8000`. Running `hostname -I` on the Pi shows the address.
+5. **Let it learn** for 2 minutes with the pump running normally.
+
+Use the Pi's official power supply. Power the sensors' 5 V side properly too, because a weak supply can make the ESP32 restart when the motor starts. To see what the app is doing, run `journalctl -u pump-console -f`.
 
 ## What the alarms mean
 

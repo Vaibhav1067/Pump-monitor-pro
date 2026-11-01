@@ -108,7 +108,7 @@ def main():
     for name, ok, msg in results:
         print(f"  {'OK   ' if ok else 'CHECK'}  {name:12} {msg}")
     good = all(ok for _, ok, _ in results) and not rejected and not faults and rate > 0.7
-    print("\nALL SENSORS LOOK WIRED CORRECTLY. Start the dashboard with start.bat." if good
+    print("\nALL SENSORS LOOK WIRED CORRECTLY. You can start the dashboard now." if good
           else "\nFix the items above, then run this again.")
     return 0 if good else 1
 

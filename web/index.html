@@ -230,6 +230,7 @@ dialog#conn::backdrop { background: var(--color-scrim); }
 .alarm[hidden] { display: none; }
 .alarm.crit { background: var(--color-bad); }
 .alarm.warn { background: var(--color-accent); color: var(--color-accent-ink); }
+.alarm.info { background: var(--color-cool-soft); color: var(--color-ink); border-bottom: var(--rule-hair) solid var(--color-cool); }
 .alarm-word { font-size: var(--text-xl); font-weight: 500; letter-spacing: 0.02em; }
 .alarm-text { flex: 1 1 18rem; min-width: 0; display: grid; }
 .alarm-text b { font-size: var(--text-md); font-weight: 500; }
@@ -577,8 +578,10 @@ const render = {
     box.hidden = !a;
     document.body.classList.toggle("alarm-crit", a?.level === "crit");
     document.body.classList.toggle("alarm-warn", a?.level === "warn");
-    document.title = a ? `${a.word}: ${a.title}` : pageTitle;
-    siren.set(a);
+    const loud = a && a.level !== "info";
+    document.title = loud ? `${a.word}: ${a.title}` : pageTitle;
+    siren.set(loud ? a : null);
+    $("alarmMute").hidden = !loud;
     if (!a) return;
     box.className = `alarm ${a.level}`;
     $("alarmWord").textContent = a.word; $("alarmTitle").textContent = a.title; $("alarmFix").textContent = a.fix;
@@ -833,6 +836,12 @@ function findAlarm() {
   if (f.status === "CRITICAL" || (f.status === "WARNING" && far.length >= 2)) return { level: "crit", word: "DANGER", title: `${sim}${d ? d.label : "Readings far from normal"}`, fix: d?.action || "Stop the pump if it is safe to, and inspect it." };
   if (f.status === "WARNING") return { level: "warn", word: "WARNING", title: `${sim}${d ? d.label : "Unusual readings"}`, fix: d?.action || "Compare the readings with their normal values and inspect the pump." };
   if (f.status === "HEALTHY" && far.length) return { level: "warn", word: "WARNING", title: `${sim}${far.join(" and ")} far from normal`, fix: "Compare it with its normal value below, then inspect the pump and that sensor's wiring." };
+  // Healthy-looking simulated numbers must never pass for the real pump.
+  if (s.source === "sim" && s.mode === "auto") {
+    const bad = (s.serial?.scan || []).find((r) => !r.result.includes("✓") && r.result !== "not reachable");
+    return bad ? { level: "info", word: "SIMULATED", title: `Not your pump. An ESP32 was found but can't be used: ${bad.result}`, fix: fixForPortProblem(bad.result) }
+      : { level: "info", word: "SIMULATED", title: "Not your pump. No ESP32 found on USB yet", fix: "These readings are made up. Plug the ESP32 in and it switches to live data by itself." };
+  }
   return null;
 }
 
@@ -978,6 +987,7 @@ function wire() {
   $("pauseBtn").addEventListener("click", () => transport.send("set_paused", !store.state?.paused));
   $("relearnBtn").addEventListener("click", () => transport.send("relearn"));
   $("alarmMute").addEventListener("click", () => { siren.muted = true; render.alarm(); });
+  siren.arm();    // works straight away on the Pi's kiosk browser; elsewhere the first click does it
   document.addEventListener("pointerdown", () => siren.arm());
   $("srcSel").addEventListener("change", (e) => transport.send("set_source", e.target.value));
   $("replaySel").addEventListener("change", (e) => transport.send("set_replay_file", e.target.value));

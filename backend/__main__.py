@@ -3,6 +3,8 @@ import argparse
 import copy
 import json
 import os
+import socket
+import sys
 
 import uvicorn
 
@@ -56,6 +58,14 @@ def main():
     cfg["logging"]["enabled"] = a.log or cfg["logging"]["enabled"]
     host = a.host or cfg["server"]["host"]
     port = a.port or cfg["server"]["port"]
+
+    try:
+        with socket.socket() as s:
+            s.bind((host, port))
+    except OSError:
+        sys.exit(f"ERROR: port {port} is already in use.\n"
+                 f"Fix: if the dashboard is already running, use that window: http://localhost:{port}\n"
+                 f"Otherwise close the program using the port, or start this one on another port: start.bat --port {port + 1}")
 
     uvicorn.run(create_app(cfg), host=host, port=port, log_level="warning")
 

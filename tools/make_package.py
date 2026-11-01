@@ -15,7 +15,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 INCLUDE = ["FRIEND_SETUP.md", "README.md", "requirements.txt", "requirements-train.txt", "start.bat", "flash.bat",
            "check.bat", "share.bat", "backend/*.py", "web/index.html", "web/base.css", "web/tokens.css",
            "firmware/esp32_pump_node/*.ino", "models/*.json", "data/sample_session.csv", "deploy/*", "tools/*.py",
-           "tools/*.sh", "logs/.gitkeep"]
+           "tools/firmware_host/*", "tools/*.sh", "logs/.gitkeep"]
 
 
 def main():

@@ -99,6 +99,7 @@ class Processor:
             # Large backwards jump: the ESP32 rebooted (millis() restarted).
             alerts.append(make_alert(now, "warn", "ESP32 restarted"))
             self.window.clear()
+            self.start_ts = ts      # the old value is from before the clock restarted: alarms would stay inhibited
             self.last_seq = None
         elif self.last_ts is not None:
             if "seq" in r and self.last_seq is not None and r["seq"] > self.last_seq:

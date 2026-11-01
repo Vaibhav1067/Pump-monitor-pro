@@ -4,4 +4,5 @@ URL=${PUMP_URL:-http://localhost:8000}
 for _ in $(seq 60); do curl -sf "$URL/api/state" >/dev/null && break; sleep 1; done
 BROWSER=$(command -v chromium-browser || command -v chromium)
 exec "$BROWSER" --kiosk --noerrdialogs --disable-infobars --no-first-run \
+  --autoplay-policy=no-user-gesture-required \
   --disable-session-crashed-bubble --check-for-update-interval=31536000 "$URL"

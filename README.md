@@ -21,7 +21,7 @@ source badge that tells the operator.
 
 ```bash
 git clone https://github.com/tzar-beep/Pump-monitor-pro.git && cd Pump-monitor-pro
-./deploy/install_pi.sh --kiosk      # omit --kiosk if the Pi has no screen
+bash deploy/install_pi.sh --kiosk   # omit --kiosk if the Pi has no screen
 ```
 
 This installs everything, gives your user serial-port access, and registers a systemd
@@ -86,8 +86,20 @@ It is deep-merged over `CONFIG`:
 
 To send it to someone with their own hardware, run `python tools/make_package.py` and send
 `build/PumpMonitorPro.zip`. [`FRIEND_SETUP.md`](FRIEND_SETUP.md) inside it covers wiring, flashing,
-the `check.bat` sensor check and what the alarms mean. Test the software without a rig using
-`python tools/test_robustness.py`, `tools/test_e2e.py` and `tools/test_autodetect.py`.
+the `check.bat` sensor check and what the alarms mean.
+
+Testing without a rig, each with `python tools/<name>.py`:
+
+| Test | What it covers |
+|---|---|
+| `test_robustness` | Damaged messages, a pump unlike `config.py`, broken sensors, the learning period |
+| `test_firmware` | The real sketch run on a PC against simulated sensors (needs `pip install ziglang`) |
+| `test_realworld` | Real SKAB recordings through the whole pipeline, judged by the banner (needs `fetch_skab`) |
+| `test_soak` | Boot noise on the serial line, 24 hours of data, millis() rollover, a real server under load |
+| `test_e2e`, `test_autodetect` | The live path over a socket, and plug, unplug and replug |
+
+None of these replaces a run on real hardware: wiring, sensor calibration and motor noise can only
+be checked on the rig, with `check.bat`.
 
 The hardware always plugs into the computer or Raspberry Pi that runs the backend. Phones and other
 computers only open the dashboard, and the backend does the rest. There are three ways to share it.
