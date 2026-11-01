@@ -1,9 +1,15 @@
 # Pump Health Console
 
-An edge-AI predictive-maintenance HMI for a centrifugal water pump test rig.
+An edge-AI predictive-maintenance HMI for a water pump test rig.
 An ESP32 reads the sensors and streams JSON lines to a Raspberry Pi 5. The Pi
 validates each message, builds a sliding feature window, scores it for anomalies,
 logs it to CSV and pushes everything to a browser dashboard over a WebSocket.
+When something is wrong, the dashboard shows a red **DANGER** or amber **WARNING** banner with the
+likely cause and a suggested fix.
+
+> **Status:** tested on a PC and an emulated Raspberry Pi, with simulated sensors and recorded data from
+> another pump rig. It has not yet run on a real Pi, ESP32 or pump. **It only warns: it cannot switch a
+> pump off.**
 
 ```
 ESP32 ──USB serial / MQTT──▶ Pi 5: validate → 5-sample window → 12 features → scorer → status/alerts ──WebSocket──▶ browser HMI
@@ -14,6 +20,51 @@ ESP32 ──USB serial / MQTT──▶ Pi 5: validate → 5-sample window → 12
 The browser only reads the WebSocket. It never talks to serial, MQTT or the
 simulator, so it cannot tell a simulated stream from a real one, apart from the
 source badge that tells the operator.
+
+## Set it up on real hardware
+
+Read the safety notes and wiring table in [`FRIEND_SETUP.md`](FRIEND_SETUP.md) first. If the pump runs
+on 230 V, have someone qualified do the current sensor wiring.
+
+**What you need**
+
+| Where | What |
+|---|---|
+| Windows PC (once, to load the firmware) | [Python](https://www.python.org/downloads/) with **Add python.exe to PATH** ticked, Arduino CLI (`winget install ArduinoSA.CLI`), and this project (*Code → Download ZIP*). `flash.bat` also downloads the ESP32 tools, about 400 MB the first time. |
+| Raspberry Pi | Raspberry Pi OS Bookworm or newer, and Git (`sudo apt install git` if it's missing). The install script gets the rest. |
+| Hardware | A classic ESP32 board (ESP32-WROOM or DevKit, not S3 or C3), a USB cable that carries data, the sensors, and a proper power supply for the Pi. |
+
+**Steps**
+
+1. Wire the sensors with the pump's power off.
+2. Plug the ESP32 into the Windows PC and double-click **`flash.bat`**. It should end with `firmware is working`.
+3. Move the ESP32 to the Pi and plug it into a USB port.
+4. Install on the Pi. Leave out `--kiosk` if the Pi has no screen.
+
+   ```bash
+   git clone https://github.com/tzar-beep/Pump-monitor-pro.git
+   cd Pump-monitor-pro
+   bash deploy/install_pi.sh --kiosk
+   sudo reboot
+   ```
+
+5. Start the pump, then check the sensors. Fix what it reports and repeat until it says
+   `ALL SENSORS LOOK WIRED CORRECTLY`.
+
+   ```bash
+   cd Pump-monitor-pro
+   sudo systemctl stop pump-console
+   .venv/bin/python tools/check_rig.py
+   sudo systemctl start pump-console
+   ```
+
+6. Open the dashboard. With `--kiosk` it opens by itself on the Pi's screen. From another device on the
+   same network, go to `http://<pi-address>:8000`. Running `hostname -I` on the Pi shows the address.
+7. Make sure there is no blue **SIMULATED** banner. If there is, the numbers are made up, and the banner says what to fix.
+8. Keep the pump running normally for 2 minutes while it learns. Only low-water alarms work during this time.
+9. Partly close the outlet valve and check that a warning appears, then reopen it and check that it clears.
+
+To get later fixes, run `git pull` and then `sudo systemctl restart pump-console`. If the firmware changed, load it again too.
 
 ## Quick start: plug and play
 
@@ -41,22 +92,21 @@ python -m venv .venv
 
 ### What happens when you plug in (default `auto` source)
 
-1. **Nothing plugged in.** The dashboard runs the simulator, with the amber
-   **SIMULATED DATA** badge and *Device: searching USB…*. Every 2 s the backend lists the USB
+1. **Nothing plugged in.** The dashboard runs the simulator, with a blue **SIMULATED** banner saying
+   the numbers aren't from a real pump. Every 2 s the backend lists the USB
    serial ports (CP210x, CH340, FTDI, ESP32 native USB, and so on). Bluetooth and legacy COM
    ports are skipped.
 2. **ESP32 plugged in.** Each port is opened and read for up to 4 s, which allows for the ESP32
    rebooting when the port opens. The first port that sends a message passing full validation
-   is locked in. The simulator stops, the history is cleared, a green banner says
-   *ESP32 detected on COM5 (CP210x) — LIVE data*, and the badge turns to green **LIVE DATA**.
-   This usually takes 2–5 s.
-3. **Unplugged.** A red banner and the **DISCONNECTED** badge appear, and the last values are
+   is locked in. The simulator stops, the history is cleared, a message says the ESP32 connected,
+   and the top bar says *Live from the ESP32*. This usually takes 2–5 s.
+3. **Unplugged.** A red **DANGER: No readings from the pump** banner appears, and the last values are
    dimmed. The app **never falls back to simulated data** once a real device has been seen,
    because that would hide a real fault.
 4. **Plugged back in.** The app reconnects on its own, even if the OS gave the board a new port name.
 
-If a port is found but rejected, the **Controls → Data source** panel lists every port it
-probed and why, for example *silent: no data (firmware flashed?)*,
+If a port is found but rejected, the SIMULATED banner and the **Needs attention** panel say why, for
+example *sensor fault: temperature sensor not found*, *silent: no data (firmware flashed?)*,
 *port busy: close Arduino Serial Monitor*, or *permission denied: add your user to dialout*.
 
 ### Other modes
@@ -70,7 +120,7 @@ To change mode, use the **Data source** dropdown, or start the backend with a fl
 | ESP32 on a fixed port | `python -m backend --source serial --serial-port /dev/ttyUSB0` (`--source serial` alone auto-detects, without the simulator) |
 | ESP32 over MQTT | `PUMP_MQTT_PASSWORD=… python -m backend --source mqtt --mqtt-host 192.168.1.10 --mqtt-topic pumprig/esp32/telemetry` |
 | Replay a recorded CSV | `python -m backend --source replay --replay-file data/sample_session.csv --replay-speed 4` |
-| Use a trained model | add `--model models/iforest.json` |
+| Use a different model | add `--model models/iforest.json`. The default is `models/skab_forest.json`. |
 | Log to CSV from start-up | add `--log` (it can also be switched on from the UI). Live data goes to its own file. |
 
 Every tunable constant is in [`backend/config.py`](backend/config.py) (`CONFIG`): baselines,
@@ -88,19 +138,6 @@ To send it to someone with their own hardware, run `python tools/make_package.py
 `build/PumpMonitorPro.zip`. [`FRIEND_SETUP.md`](FRIEND_SETUP.md) inside it covers wiring, flashing,
 the `check.bat` sensor check and what the alarms mean.
 
-Testing without a rig, each with `python tools/<name>.py`:
-
-| Test | What it covers |
-|---|---|
-| `test_robustness` | Damaged messages, a pump unlike `config.py`, broken sensors, the learning period |
-| `test_firmware` | The real sketch run on a PC against simulated sensors (needs `pip install ziglang`) |
-| `test_realworld` | Real SKAB recordings through the whole pipeline, judged by the banner (needs `fetch_skab`) |
-| `test_soak` | Boot noise on the serial line, 24 hours of data, millis() rollover, a real server under load |
-| `test_e2e`, `test_autodetect` | The live path over a socket, and plug, unplug and replug |
-
-None of these replaces a run on real hardware: wiring, sensor calibration and motor noise can only
-be checked on the rig, with `check.bat`.
-
 The hardware always plugs into the computer or Raspberry Pi that runs the backend. Phones and other
 computers only open the dashboard, and the backend does the rest. There are three ways to share it.
 
@@ -113,7 +150,7 @@ computers only open the dashboard, and the backend does the rest. There are thre
 4. They plug the ESP32 into USB. It is detected and the dashboard switches to **Live** by itself.
    If the board is new, they run **`flash.bat`** once first to load the firmware.
 
-On a Raspberry Pi they run `./deploy/install_pi.sh --kiosk` instead. Then it starts on every boot.
+On a Raspberry Pi they follow [Set it up on real hardware](#set-it-up-on-real-hardware) instead. Then it starts on every boot.
 
 **2. Your friend opens your rig from anywhere (no setup on their side)**
 
@@ -143,7 +180,8 @@ One screen, kept deliberately simple:
 
 | Part | What it shows |
 |---|---|
-| Header | Overall status (Healthy / Warning / Critical / Dry-run protection / Standby), the data source (**LIVE**, **SIMULATED**, **REPLAY**, or **NO DATA** / **DISCONNECTED** in red) with the time since the last reading, and a Dark / Light / System theme switch. |
+| Alarm banner | **Red DANGER** with a pulsing red screen edge and fast beep: readings far from normal, two or more sensors far off, low water, or no data. **Amber WARNING** with a slower beep: readings drifting, or one sensor far from normal. **Blue SIMULATED**: the numbers aren't from a real pump. **Silence** stops the beep only. Browsers allow sound only after the first click, except the Pi's kiosk mode. |
+| Header | Overall status (Healthy / Warning / Critical / Low water / Learning / Standby), the data source (live, simulated or recorded) with the time since the last reading, and a theme switch. |
 | Pump health | A health gauge (0–100), the status in words and, when something is wrong, the **likely cause** with a suggested fix (e.g. *Outlet restriction / blockage (97%) — check the discharge valve and outlet line*). Also shows the pump state and the anomaly score. |
 | Sensor cards | Speed, flow, pressure, motor current, temperature and vibration: live value, normal value, a one-minute sparkline, and a coloured dot (green / amber / red). |
 | Trend | The last 2 minutes of the anomaly score (with warning and critical lines) or any one sensor, with a hover readout. |
@@ -171,14 +209,17 @@ prints, and that line goes through the same parse → validate → feature → s
 | Outlet restriction | Flow ↓ (×0.45), Pressure ↑ (+1.1 bar), Current ↑ (+0.35 A) |
 | Mechanical imbalance | Vibration ↑↑ (×3.6), Current ↑, Temp ↑ |
 | Overload | RPM ↓ (−180), Current ↑↑ (+1.2 A), Temp ↑ (+12 °C), Flow ↓ |
-| Dry run | Float LOW → Flow 0, Current ↓, vibration ↑. The interlock trips the pump after 2 s and stays **latched** until you press *Start*. |
+| Dry run | Float LOW → Flow 0, Current ↓, vibration ↑. The simulated pump trips after 2 s and stays **latched** until you press *Start*. A real pump is not stopped: the software only warns. |
 
 * The valve slider adds restriction on top of any scenario.
 * Pump ON/OFF and stream pause/resume are simulator commands. On a live source, pause
   discards incoming lines and counts them as `skipped`. The pump button is disabled on live
   sources because the Pi has no actuator.
 
-## Scoring (demo scorer, standing in for Isolation Forest)
+## Scoring: the formula
+
+The default scorer is a [random forest trained on real pump data](#default-model-random-forest-trained-on-real-pump-data).
+This formula is the fallback: it runs if no model file is set, and it covers the learning period on simulated and recorded data.
 
 ```
 z_i    = (f_i − baseline_i) / σ_i                       for the 12 features
@@ -189,7 +230,8 @@ health = round((1 − score) × 100)
 
 HEALTHY is score < 0.3, WARNING is 0.3–0.6, CRITICAL is > 0.6. A new band must hold for
 2 samples (debounce), and an alarm clears only once the score is 0.08 below its threshold
-(deadband). Float = 0 overrides everything with DRY-RUN PROTECTION. RPM < 200 shows STANDBY.
+(deadband). Float = 0 overrides everything with the low-water alarm. STANDBY needs speed, current and flow all low
+(under 200 rpm, 0.5 A and 1 L/min), so a dead speed sensor can't hide a running pump.
 Alarms are inhibited for 8 s after a start while the window refills.
 
 Features are computed over the last 5 samples: RPM mean, current RMS and STD, temperature
@@ -261,19 +303,23 @@ For MQTT, the payload is the same JSON object (one per message, or newline-separ
 
 | Field | Type | Unit | Valid range | Meaning |
 |---|---|---|---|---|
-| `ts` | int, required | ms | ≥ 0, increasing | `millis()` at the end of the 1 s acquisition window. A jump backwards of more than 10 s is treated as a reboot. |
-| `seq` | int, optional | – | increasing | Message counter, used to count dropped messages. Without it, gaps in `ts` are used. |
-| `rpm` | number, required | rpm | 0–3000 | Shaft speed from the mean A3144 pulse period |
-| `temp_c` | number, required | °C | −10–100 | DS18B20 motor/casing temperature |
-| `current_a` | number, required | A (RMS) | 0–20 | ACS712 true RMS over the window |
-| `flow_lpm` | number, required | L/min | 0–40 | YF-S201 pulse frequency / 7.5 |
-| `pressure_bar` | number, required | bar (gauge) | −0.1–5.2 | Outlet pressure, 0–5 bar transducer. Values below 0 are clamped to 0. |
+| `ts` | int, required | ms | 0–2³², increasing | `millis()` at the end of the 1 s acquisition window. A jump backwards of more than 10 s is treated as a reboot. |
+| `seq` | int, optional | – | 0–2³², increasing | Message counter, used to count dropped messages. Without it, gaps in `ts` are used. |
+| `rpm` | number, required | rpm | 0–8000 | Shaft speed from the mean A3144 pulse period |
+| `temp_c` | number, required | °C | −55–125 | DS18B20 motor/casing temperature |
+| `current_a` | number, required | A (RMS) | 0–30 | ACS712 true RMS over the window |
+| `flow_lpm` | number, required | L/min | 0–200 | YF-S201 pulse frequency / 7.5 |
+| `pressure_bar` | number, required | bar (gauge) | −0.7–5.5 | Outlet pressure, 0–5 bar transducer. Values below 0 are clamped to 0. About −0.6 means no sensor signal, which the dashboard flags. |
 | `vib_x`, `vib_y`, `vib_z` | number, required | g | 0–16 | Per-axis **AC RMS** over the window, with gravity/DC removed |
-| `vib_peak` | number, optional | g | 0–16 | Peak absolute deviation on any axis in the window. If missing, the Pi uses 2.8 × max axis RMS. |
+| `vib_peak` | number, optional | g | 0–33 | Peak absolute deviation on any axis in the window. If missing, the Pi uses 2.8 × max axis RMS. |
 | `float` | 0 / 1, required | – | 0 or 1 | Inlet level: 1 = water OK, 0 = LOW |
+
+The ranges are what the sensors can electrically report, because one rejected field discards the whole message.
 
 Messages that fail any check are rejected, not fed to the model, and counted by reason
 (`missing`, `type`, `range`, `parse`, `not_json`, `ts_order`, `too_long`).
+If the temperature sensor or accelerometer is missing or stops answering, the firmware sends
+`# sensor fault: temp=… adxl=…` instead of readings, rather than made-up or frozen values.
 The per-sample vibration RMS is √((x² + y² + z²)/3).
 
 ### Flashing the ESP32 (automated)
@@ -325,6 +371,11 @@ without blocking, and prints one line per second. Pins:
 | Plug-and-play, any OS | `python tools/test_autodetect.py` | Starts in auto mode with nothing attached, then plugs in a fake ESP32, unplugs it and plugs it back in. Asserts: simulator while waiting, scan reasons listed, automatic switch to LIVE (about 2 s), DISCONNECTED on unplug with no fallback to simulated data, banners, and automatic reconnect |
 | Live path, any OS | `python tools/test_e2e.py` | Fake ESP32 on TCP → pyserial `socket://` URL → the real `SerialSource` → WebSocket client. Injects bad lines, sequence gaps and a 9 s stall, and asserts rejection counts, LIVE → STALE → reconnect → LIVE, the CSV log, and replay of that log |
 | Live path over a real pty (Pi/Linux) | `sudo apt install socat && ./tools/test_live_path.sh` | `socat` creates a virtual serial pair. `fake_esp32.py` writes to `/tmp/ttyESP32` and the backend reads `/tmp/ttyPI`, as it would read `/dev/ttyUSB0`. Extra flags pass through, e.g. `--scenario imbalance --stall-after 30` |
+| Hardware check, on the rig | `check.bat`, or `python tools/check_rig.py` on a Pi | Reads the ESP32 for 30 s with the pump running and reports on each sensor in plain words |
+| Damaged data and broken sensors | `python tools/test_robustness.py` | 40,000 random or damaged messages, a pump unlike `config.py`, dead sensors, ESP32 reboots, the learning period, CSV failures |
+| Firmware logic, no board | `pip install ziglang`, then `python tools/test_firmware.py` | Runs the real sketch on a PC against simulated sensors, including sensors lost mid-run, and validates its output. Proves logic and arithmetic, not wiring or noise |
+| Real pump recordings | `python tools/fetch_skab.py`, then `python tools/test_realworld.py` | SKAB recordings through the whole pipeline, judged by whether a banner would show |
+| Long runs | `python tools/test_soak.py` | Boot noise on the serial line, 24 hours of data, `millis()` rollover, and a real server at 50 messages a second with one browser stalled |
 | Offline replay of logged data | `python tools/replay_eval.py data/sample_session.csv [--model models/iforest.json]` | Recomputes every window with the chosen scorer and prints the status mix, agreement with the logged status, and alerts |
 | Interactive replay | `python -m backend --source replay` | Streams a CSV through the live pipeline at the original timing |
 
@@ -333,20 +384,24 @@ COM pair, install com0com and run `fake_esp32.py --port COM6` with `--serial-por
 
 `data/sample_session.csv` (24 min, 1440 rows) is regenerated with `python tools/make_sample_csv.py`.
 
+None of these replaces a run on real hardware: wiring, sensor calibration and motor noise can only be
+checked on the rig.
+
 ## Assumptions to calibrate on the real hardware
 
 1. **Sample rate**: 1 JSON line per second. The window is 5 samples (5 s). The temperature slope
    is a least-squares fit over those 5 s, which is noisy. Its tolerance (1.5 °C/min) reflects that.
 2. **Baselines and tolerances** (`CONFIG["features"]`, `mean` / `scale`) are the values from the brief,
-   with tolerances I chose. On the rig, log 10+ minutes of normal running and set `mean` to the
-   per-feature mean and `scale` to about 3 × its standard deviation. The demo scorer only means
-   something once these are right.
+   with tolerances I chose. On a real pump the default model replaces each `mean` with the learned
+   value and keeps the tolerance as a percentage. The formula on its own only means something once
+   you set these for your pump: log 10+ minutes of normal running, then set `mean` to the per-feature
+   mean and `scale` to about 3 × its standard deviation.
 3. **ACS712**: 20 A variant, 100 mV/A, zero offset measured at boot **with the pump off**, divider ×2/3.
    True RMS over 1 s at 400 Hz, which suits a 50 Hz AC motor (1480 rpm suggests a 4-pole induction
    motor) or a DC motor.
 4. **Pressure transducer**: ratiometric 0.5–4.5 V = 0–5 bar on a 5 V supply, divider ×2/3. Check the datasheet.
 5. **YF-S201**: F = 7.5 × Q (L/min) is nominal. Real units vary by ±10 %, so calibrate with a bucket and stopwatch.
-6. **Hall sensor**: one magnet per revolution, RPM from the mean edge period, 2 ms debounce.
+6. **Hall sensor**: one magnet per revolution, RPM from the mean edge period, 8 ms debounce (7500 rpm maximum).
    The reading drops to 0 if there is no edge for 0.5 s.
 7. **ADXL345**: ±16 g full-resolution mode (3.9 mg/LSB), 400 Hz ODR. `vib_x/y/z` are AC RMS per axis.
    The values depend strongly on mounting position. The brief's 0.12 g baseline is taken as the combined RMS.
@@ -356,7 +411,7 @@ COM pair, install com0com and run `fake_esp32.py --port COM6` with `--serial-por
 9. **Auto-detect**: any USB serial port is probed at 115200 baud. The board is accepted only if a
    line passes full validation, so other USB serial devices are opened briefly but never used.
    If you have other USB-serial gear on the Pi that must not be opened, set a fixed `serial.port`.
-10. **Standby detection**: RPM < 200 means the pump is not running. The Pi has no pump-command input on a live source.
+10. **Standby detection**: the pump counts as stopped only when speed, current and flow are all low (see Scoring). The Pi has no pump-command input on a live source.
 11. **Outlet restriction signature**: the brief specifies Current ↑. On a radial-flow centrifugal pump,
     throttling the discharge usually **reduces** shaft power and current. The simulator follows the brief
     (`valve.cur_k`, `blockage.current_add`). Flip the sign if the rig shows the opposite.
@@ -375,15 +430,17 @@ COM pair, install com0com and run `fake_esp32.py --port COM6` with `--serial-por
 
 ```
 backend/   config.py (all constants) · schema.py (validation) · simulator.py · features.py
-           scorer.py (demo + Isolation Forest, load_scorer hook) · processor.py (window/score/status/alerts)
+           scorer.py (random forest, formula, Isolation Forest, load_scorer hook) · processor.py (window/score/status/alerts)
            analytics.py (engineering values, fault diagnosis) · alarms.py (ISA-18.2 style alarm states)
            sources.py (auto / sim / serial / mqtt / replay) · csvlog.py · server.py (FastAPI + WebSocket) · __main__.py
 web/       index.html: the HMI. Plain HTML/CSS/JS, no build step, hand-drawn SVG charts
 firmware/  esp32_pump_node/esp32_pump_node.ino
-tools/     flash_esp32.py · scenario_check.py · test_autodetect.py · test_e2e.py · test_live_path.sh · fake_esp32.py
-           replay_eval.py · train_iforest.py · make_sample_csv.py
+tools/     flash_esp32.py · check_rig.py · make_package.py · fake_esp32.py · replay_eval.py · make_sample_csv.py
+           fetch_skab.py · train_skab.py · train_iforest.py · scenario_check.py · test_robustness.py
+           test_firmware.py + firmware_host/ · test_realworld.py · test_soak.py · test_autodetect.py · test_e2e.py · test_live_path.sh
 deploy/    install_pi.sh (Pi setup + boot service + kiosk) · pump-console.service · kiosk.sh
-start.bat  Windows one-click launcher · flash.bat  one-click ESP32 flashing · share.bat  public link to this rig
+start.bat  Windows one-click launcher · flash.bat  one-click ESP32 flashing · check.bat  sensor check · share.bat  public link to this rig
+FRIEND_SETUP.md  full setup guide: safety, wiring, alarms, troubleshooting
 vercel.json  publishes web/ as a static site on Vercel
 data/      sample_session.csv  (simulated session for replay/training demos)
 models/    skab_forest.json    (default model, trained on real SKAB pump data)
@@ -394,5 +451,5 @@ logs/      CSV session logs (git-ignored)
 **Port already in use?** If another app on the machine already listens on port 8000, start the
 console on a different port, e.g. `python -m backend --port 8010`, and open `http://localhost:8010`.
 
-The only external request is the IBM Plex font from Google Fonts. Without internet access
+The only external request is the page's fonts from Google Fonts. Without internet access
 (for example a Pi on an isolated network), the page falls back to system fonts.
