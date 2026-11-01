@@ -87,6 +87,7 @@ main { max-width: var(--container); margin-inline: auto; padding: var(--space-lg
 #kpis { display: grid; grid-template-columns: minmax(0, 1.2fr) repeat(3, minmax(0, 1fr)); gap: var(--rule-hair); background: var(--color-rule);
   border: var(--rule-hair) solid var(--color-rule); border-radius: var(--radius-card); overflow: hidden; }
 #kpis > .kpi { background: var(--color-paper-2); padding: var(--space-md) var(--space-lg); min-width: 0; }
+#kpis > .kpi:last-child { grid-column: span 2; }   /* five readings: the last fills the row, at every width */
 #kpis > .kpi.health { grid-row: span 2; display: flex; flex-direction: column; justify-content: space-between; gap: var(--space-md); }
 .kpi .k { color: var(--color-muted); font-weight: 500; font-size: var(--text-xs); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .kpi .v { margin-top: var(--space-2xs); font-family: var(--font-outlier); font-size: var(--text-xl); color: var(--color-ink); white-space: nowrap; font-variant-numeric: tabular-nums slashed-zero; }
@@ -447,7 +448,6 @@ const CELL = { "HEALTHY": "ok", "WARNING": "warn", "CRITICAL": "crit", "DRY-RUN 
 const SEV = { info: ["", "Info"], warn: ["warn", "Warning"], crit: ["crit", "Critical"] };
 const SENSORS = [
   { id: "rpm", label: "Speed", unit: "rpm", dp: 0, get: (f) => f.reading.rpm, ch: "hall", base: "rpm", norm: "rpm_mean" },
-  { id: "flow", label: "Flow", unit: "L/min", dp: 1, get: (f) => f.reading.flow_lpm, ch: "flow", base: "flow_lpm", norm: "flow_mean" },
   { id: "pressure", label: "Outlet pressure", unit: "bar", dp: 2, get: (f) => f.reading.pressure_bar, ch: "pressure", base: "pressure_bar", norm: "pressure_mean" },
   { id: "current", label: "Motor current", unit: "A", dp: 2, get: (f) => f.reading.current_a, ch: "current", base: "current_a", norm: "current_rms" },
   { id: "temp", label: "Motor temperature", unit: "°C", dp: 1, get: (f) => f.reading.temp_c, ch: "temp", base: "temp_c", norm: "temp_mean" },
@@ -457,7 +457,7 @@ const SENSORS = [
 const normalOf = (s, f) => f?.normal?.[s.norm] ?? store.cfg.baseline[s.base];
 const METRICS = { score: { label: "Anomaly score", unit: "", dp: 2, get: (f) => f.score, fixed: [0, 1], thresholds: true },
   ...Object.fromEntries(SENSORS.map((s) => [s.id, s])) };
-const TAB = { score: "Anomaly", flow: "Flow", pressure: "Pressure", current: "Current", temp: "Temperature", vib: "Vibration", rpm: "Speed" };
+const TAB = { score: "Anomaly", pressure: "Pressure", current: "Current", temp: "Temperature", vib: "Vibration", rpm: "Speed" };
 
 /* ====================================================================== which rig
    Served by the rig's backend: talk to the same host. Served elsewhere (Vercel): the rig comes from
@@ -546,7 +546,7 @@ function buildShell() {
 }
 
 function build() {
-  $("tabs").innerHTML = ["score", "flow", "pressure", "current", "temp", "vib", "rpm"].map((m) =>
+  $("tabs").innerHTML = ["score", "pressure", "current", "temp", "vib", "rpm"].map((m) =>
     `<button type="button" data-m="${m}" aria-pressed="${m === store.metric}">${TAB[m]}</button>`).join("");
   $("scenarios").innerHTML = Object.entries(store.cfg.scenarios).map(([key, s]) =>
     `<button type="button" data-s="${key}" aria-pressed="false"><span class="l">${esc(s.label)}</span><span class="s">${esc(s.signature)}</span></button>`).join("");
@@ -607,7 +607,7 @@ const render = {
     let text = `${label} for ${i > 0 ? "" : "at least "}${dur}.`;
     if (f.status === "LEARNING") text = `Learning this pump's normal running: ${f.learning_left} s left. Keep it running normally. Only the low-water check is active until this finishes.`;
     else if (f.diagnosis) text += ` Most likely ${f.diagnosis.label.toLowerCase()}.`;
-    else if (f.status === "HEALTHY") text += " All six channels are within tolerance of normal running.";
+    else if (f.status === "HEALTHY") text += " All five channels are within tolerance of normal running.";
     else if (f.status === "STANDBY") text += " The pump is stopped.";
     $("finding").textContent = text;
   },
@@ -740,7 +740,7 @@ function linkState() {
 
 /* ====================================================================== problems and their fixes */
 const FIELD_SENSOR = { rpm: "speed sensor (A3144 Hall, GPIO26)", temp_c: "temperature sensor (DS18B20, GPIO4)",
-  current_a: "current sensor (ACS712, GPIO34 via divider)", flow_lpm: "flow sensor (YF-S201, GPIO27)",
+  current_a: "current sensor (ACS712, GPIO34 via divider)",
   pressure_bar: "pressure transducer (GPIO35 via divider)", vib_x: "accelerometer (ADXL345, I²C)", vib_y: "accelerometer (ADXL345, I²C)",
   vib_z: "accelerometer (ADXL345, I²C)", vib_peak: "accelerometer (ADXL345, I²C)", float: "float switch (GPIO25)" };
 

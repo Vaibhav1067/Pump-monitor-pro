@@ -52,15 +52,14 @@ def run(verbose=False, seed=1):
             for a in res["alerts"]:
                 if verbose:
                     print(f"    [{a['sev']:4}] {a['msg']}")
-        r, e, d = f["reading"], f["eng"], f["diagnosis"]
+        r, d = f["reading"], f["diagnosis"]
         diag = d["fault"] if d else None
         ok = f["status"] == expect and (expect_diag is None or diag == expect_diag)
         rng = f"{min(scores):.2f}-{max(scores):.2f}" if scores else "  -  "
         dtxt = f"{diag}({d['confidence']:.2f})" if d else "-"
-        eff = f"{e['eff_pct']:4.1f}%" if e["eff_pct"] is not None else "  -  "
         print(f"{'OK ' if ok else 'BAD'} {label:18} -> {f['status']:19} score {rng:10} diag {dtxt:22} "
-              f"Q {r['flow_lpm']:5.1f} P {r['pressure_bar']:4.2f} I {r['current_a']:4.2f} n {r['rpm']:5.0f} "
-              f"vib {r['vib_rms']:.3f} eff {eff} alarms {[a['tag'] for a in am.listing() if a['active']]}")
+              f"P {r['pressure_bar']:4.2f} I {r['current_a']:4.2f} n {r['rpm']:5.0f} "
+              f"vib {r['vib_rms']:.3f} alarms {[a['tag'] for a in am.listing() if a['active']]}")
         if not ok:
             failures.append((label, expect, f["status"], expect_diag, diag))
         am.ack()                       # operator acknowledges after each step

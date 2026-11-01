@@ -12,7 +12,7 @@ likely cause and a suggested fix.
 > pump off.**
 
 ```
-ESP32 ──USB serial / MQTT──▶ Pi 5: validate → 5-sample window → 12 features → scorer → status/alerts ──WebSocket──▶ browser HMI
+ESP32 ──USB serial / MQTT──▶ Pi 5: validate → 5-sample window → 10 features → scorer → status/alerts ──WebSocket──▶ browser HMI
   ▲                                     ▲                                                     └──▶ CSV log
   └ simulator / CSV replay (same JSON lines, same code path) ┘
 ```
@@ -183,11 +183,11 @@ One screen, kept deliberately simple:
 | Alarm banner | **Red DANGER** with a pulsing red screen edge and fast beep: readings far from normal, two or more sensors far off, low water, or no data. **Amber WARNING** with a slower beep: readings drifting, or one sensor far from normal. **Blue SIMULATED**: the numbers aren't from a real pump. **Silence** stops the beep only. Browsers allow sound only after the first click, except the Pi's kiosk mode. |
 | Header | Overall status (Healthy / Warning / Critical / Low water / Learning / Standby), the data source (live, simulated or recorded) with the time since the last reading, and a theme switch. |
 | Pump health | A health gauge (0–100), the status in words and, when something is wrong, the **likely cause** with a suggested fix (e.g. *Outlet restriction / blockage (97%) — check the discharge valve and outlet line*). Also shows the pump state and the anomaly score. |
-| Sensor cards | Speed, flow, pressure, motor current, temperature and vibration: live value, normal value, a one-minute sparkline, and a coloured dot (green / amber / red). |
+| Sensor cards | Speed, pressure, motor current, temperature and vibration: live value, normal value, a one-minute sparkline, and a coloured dot (green / amber / red). |
 | Trend | The last 2 minutes of the anomaly score (with warning and critical lines) or any one sensor, with a hover readout. |
 | Controls | Fault buttons for the simulator (Normal, Blockage, Imbalance, Overload, Dry run), outlet valve slider, pump start/stop, pause, and the data-source picker. When no ESP32 is attached it says so. |
-| Recent events | Plain-language log: "Critical — anomaly score 0.96 (flow and pressure unusual)", "Back to healthy", "ESP32 connected on COM5 — showing live data", … |
-| System details (collapsed) | For the report and demo: the data pipeline, the scoring formula, the 12-feature vector with each feature's deviation, the sensor list, message counters and the CSV-logging switch. |
+| Recent events | Plain-language log: "Critical — anomaly score 0.96 (pressure and current unusual)", "Back to healthy", "ESP32 connected on COM5 — showing live data", … |
+| System details (collapsed) | For the report and demo: the data pipeline, the scoring formula, the 10-feature vector with each feature's deviation, the sensor list, message counters and the CSV-logging switch. |
 
 The Pi backend still computes more than the page shows (engineering values, ISA-style alarm states,
 edge-node stats); it is all in the WebSocket `frame` / `state` messages if you want to add it back.
@@ -199,17 +199,17 @@ prints, and that line goes through the same parse → validate → feature → s
 
 * One reading per second. Every channel has realistic noise: DS18B20 temperatures are quantised
   to 0.0625 °C, and the ADXL345 output is three per-axis RMS values plus a peak.
-* Operating points blend through first-order lags (about 2 s for hydraulics, 90 s for temperature,
+* Operating points blend through first-order lags (about 2 s for pressure, 90 s for temperature,
   0.6 s coast-down when the pump stops), so changes ramp in instead of jumping.
 * Scenarios (all deltas are in `CONFIG["simulator"]["scenarios"]`):
 
 | Scenario | Signature |
 |---|---|
-| Normal | baseline: 1480 rpm, 2.1 A, 18.4 L/min, 2.2 bar, 38 °C, 0.12 g |
-| Outlet restriction | Flow ↓ (×0.45), Pressure ↑ (+1.1 bar), Current ↑ (+0.35 A) |
+| Normal | baseline: 1480 rpm, 2.1 A, 2.2 bar, 38 °C, 0.12 g |
+| Outlet restriction | Pressure ↑ (+1.1 bar), Current ↑ (+0.35 A) |
 | Mechanical imbalance | Vibration ↑↑ (×3.6), Current ↑, Temp ↑ |
-| Overload | RPM ↓ (−180), Current ↑↑ (+1.2 A), Temp ↑ (+12 °C), Flow ↓ |
-| Dry run | Float LOW → Flow 0, Current ↓, vibration ↑. The simulated pump trips after 2 s and stays **latched** until you press *Start*. A real pump is not stopped: the software only warns. |
+| Overload | RPM ↓ (−180), Current ↑↑ (+1.2 A), Temp ↑ (+12 °C) |
+| Dry run | Float LOW → Current ↓, vibration ↑. The simulated pump trips after 2 s and stays **latched** until you press *Start*. A real pump is not stopped: the software only warns. |
 
 * The valve slider adds restriction on top of any scenario.
 * Pump ON/OFF and stream pause/resume are simulator commands. On a live source, pause
@@ -222,22 +222,21 @@ The default scorer is a [random forest trained on real pump data](#default-model
 This formula is the fallback: it runs if no model file is set, and it covers the learning period on simulated and recorded data.
 
 ```
-z_i    = (f_i − baseline_i) / σ_i                       for the 12 features
-D      = √( (1/12) · Σ clip(z_i, ±8)² )
+z_i    = (f_i − baseline_i) / σ_i                       for the 10 features
+D      = √( (1/10) · Σ clip(z_i, ±8)² )
 score  = 1 − exp(−(D / 2)²)                             ∈ [0, 1]
 health = round((1 − score) × 100)
 ```
 
 HEALTHY is score < 0.3, WARNING is 0.3–0.6, CRITICAL is > 0.6. A new band must hold for
 2 samples (debounce), and an alarm clears only once the score is 0.08 below its threshold
-(deadband). Float = 0 overrides everything with the low-water alarm. STANDBY needs speed, current and flow all low
-(under 200 rpm, 0.5 A and 1 L/min), so a dead speed sensor can't hide a running pump.
+(deadband). Float = 0 overrides everything with the low-water alarm. STANDBY needs speed and current both low
+(under 200 rpm and 0.5 A), so a dead speed sensor can't hide a running pump.
 Alarms are inhibited for 8 s after a start while the window refills.
 
 Features are computed over the last 5 samples: RPM mean, current RMS and STD, temperature
-mean and slope (°C/min, least squares), flow mean and STD, pressure mean and STD, and
-vibration RMS, peak and STD. (The brief listed 11 features and asked for 12. Vibration STD is
-the 12th, from the ADXL345 "RMS, peak, STD" summary.)
+mean and slope (°C/min, least squares), pressure mean and STD, and
+vibration RMS, peak and STD.
 
 ### Replacing the demo scorer with a trained model
 
@@ -280,9 +279,12 @@ Simulated and replayed data match `config.py`, so the demo scorer covers those 2
 SKAB has no speed sensor or vibration peak, so `rpm_mean` and `vib_peak` are not model inputs.
 
 Test results on SKAB (whole runs held out, about 1 % of healthy windows allowed over the limit):
-30 of 34 fault runs caught, 5.3 false alarms per hour of healthy running. These describe SKAB's
-pump. **They have not been measured on our pump.** The weakest faults were hot water (0 of 1 runs),
-added water (1 of 2) and cavitation (AUC 0.69). Check it on the rig with
+10 of 34 fault runs caught, 5.9 false alarms per hour of healthy running, overall AUC 0.51. These
+describe SKAB's pump. **They have not been measured on our pump.** The project has no flow sensor, and
+flow was the model's main signal for valve faults: with it, the same test caught 30 of 34. It catches
+rotor imbalance (5 of 5) but misses most valve faults (2 of 20) and all leaks and cavitation.
+To cover this, on a real pump a sensor far from its learned normal raises WARNING by itself, and two
+or more raise CRITICAL. Check it on the rig with
 `tools/replay_eval.py` and safe, deliberate faults. To go back to the formula, set `model_path`
 to `null` in `config.local.json`.
 
@@ -297,7 +299,7 @@ Lines that do not start with `{` (for example `# boot message`) are counted as `
 For MQTT, the payload is the same JSON object (one per message, or newline-separated), sent to `pumprig/esp32/telemetry`, QoS 0.
 
 ```json
-{"ts":123456,"seq":42,"rpm":1482.0,"temp_c":38.06,"current_a":2.12,"flow_lpm":18.40,
+{"ts":123456,"seq":42,"rpm":1482.0,"temp_c":38.06,"current_a":2.12,
  "pressure_bar":2.301,"vib_x":0.1200,"vib_y":0.0900,"vib_z":0.1500,"vib_peak":0.412,"float":1}
 ```
 
@@ -308,7 +310,6 @@ For MQTT, the payload is the same JSON object (one per message, or newline-separ
 | `rpm` | number, required | rpm | 0–8000 | Shaft speed from the mean A3144 pulse period |
 | `temp_c` | number, required | °C | −55–125 | DS18B20 motor/casing temperature |
 | `current_a` | number, required | A (RMS) | 0–30 | ACS712 true RMS over the window |
-| `flow_lpm` | number, required | L/min | 0–200 | YF-S201 pulse frequency / 7.5 |
 | `pressure_bar` | number, required | bar (gauge) | −0.7–5.5 | Outlet pressure, 0–5 bar transducer. Values below 0 are clamped to 0. About −0.6 means no sensor signal, which the dashboard flags. |
 | `vib_x`, `vib_y`, `vib_z` | number, required | g | 0–16 | Per-axis **AC RMS** over the window, with gravity/DC removed |
 | `vib_peak` | number, optional | g | 0–33 | Peak absolute deviation on any axis in the window. If missing, the Pi uses 2.8 × max axis RMS. |
@@ -342,7 +343,7 @@ Needs `arduino-cli` on PATH (`winget install ArduinoSA.CLI` on Windows; on Linux
 
 **Firmware:** [`firmware/esp32_pump_node/esp32_pump_node.ino`](firmware/esp32_pump_node/esp32_pump_node.ino)
 (Arduino framework, libraries OneWire and DallasTemperature). It samples the ADXL345, ACS712 and
-pressure input at 400 Hz, counts flow and Hall pulses in interrupts, reads the DS18B20
+pressure input at 400 Hz, counts Hall pulses in an interrupt, reads the DS18B20
 without blocking, and prints one line per second. Pins:
 
 | Sensor | ESP32 pin |
@@ -351,14 +352,13 @@ without blocking, and prints one line per second. Pins:
 | DS18B20 | GPIO4, 4.7 kΩ pull-up |
 | ACS712 | GPIO34 (ADC1) |
 | Pressure | GPIO35 (ADC1) |
-| YF-S201 | GPIO27 |
 | A3144 | GPIO26, 10 kΩ pull-up |
 | Float | GPIO25 to GND, `INPUT_PULLUP` |
 
 > **Voltage conditioning is mandatory.** ESP32 GPIOs are 3.3 V and **not 5 V tolerant**.
 > The ACS712 (5 V supply, 2.5 V ± sensitivity output) and the 0.5–4.5 V pressure transducer must
 > go through a resistor divider (for example 10 kΩ / 20 kΩ, ×0.667) and ideally a buffer or RC filter
-> before GPIO34/35. The YF-S201 output also needs a divider or level shifter. Use ADC1 pins only
+> before GPIO34/35. Use ADC1 pins only
 > (ADC2 does not work while Wi-Fi is on). The firmware divides by the same ratio, so set
 > `ACS_DIVIDER` / `P_DIVIDER` to the resistors you fit. If the pump is mains powered, the ACS712 is
 > in the mains path: use a properly isolated module and enclosure, or a split-core CT instead.
@@ -400,7 +400,6 @@ checked on the rig.
    True RMS over 1 s at 400 Hz, which suits a 50 Hz AC motor (1480 rpm suggests a 4-pole induction
    motor) or a DC motor.
 4. **Pressure transducer**: ratiometric 0.5–4.5 V = 0–5 bar on a 5 V supply, divider ×2/3. Check the datasheet.
-5. **YF-S201**: F = 7.5 × Q (L/min) is nominal. Real units vary by ±10 %, so calibrate with a bucket and stopwatch.
 6. **Hall sensor**: one magnet per revolution, RPM from the mean edge period, 8 ms debounce (7500 rpm maximum).
    The reading drops to 0 if there is no edge for 0.5 s.
 7. **ADXL345**: ±16 g full-resolution mode (3.9 mg/LSB), 400 Hz ODR. `vib_x/y/z` are AC RMS per axis.
@@ -411,18 +410,17 @@ checked on the rig.
 9. **Auto-detect**: any USB serial port is probed at 115200 baud. The board is accepted only if a
    line passes full validation, so other USB serial devices are opened briefly but never used.
    If you have other USB-serial gear on the Pi that must not be opened, set a fixed `serial.port`.
-10. **Standby detection**: the pump counts as stopped only when speed, current and flow are all low (see Scoring). The Pi has no pump-command input on a live source.
-11. **Outlet restriction signature**: the brief specifies Current ↑. On a radial-flow centrifugal pump,
+10. **Standby detection**: the pump counts as stopped only when speed and current are both low (see Scoring). The Pi has no pump-command input on a live source.
+11. **Outlet restriction signature**: the brief specifies Current ↑. On many centrifugal pumps,
     throttling the discharge usually **reduces** shaft power and current. The simulator follows the brief
     (`valve.cur_k`, `blockage.current_add`). Flip the sign if the rig shows the opposite.
 12. **Thresholds**: stale after 3 s without a valid message, the serial port is reopened after 6 s of silence,
     startup inhibit is 8 s, debounce 2 samples, deadband 0.08.
 13. **Engineering values**: electrical input is *estimated* as 230 V × I × 0.8 PF (single-phase AC
-    assumed). Outlet gauge pressure is taken as the pump's Δp (suction at atmospheric). The pump curve
-    (h0 = 3.75 bar, k = 0.00458 bar/(L/min)²) is fitted to the brief's duty point. Measure the shut-off
-    pressure and one more point on the rig and update `CONFIG["engineering"]`.
+    assumed). Outlet gauge pressure is taken as the pump's Δp (suction at atmospheric).
+    Efficiency and hydraulic power are not available without a flow sensor.
 14. **Diagnosis signatures** (`CONFIG["diagnosis"]`) are engineering rules of thumb. Check them against
-    logged fault runs; the restriction signature uses Current ↑ as the brief does (see 11).
+    logged fault runs; the restriction signature uses Current ↑ as the brief does (see the outlet restriction note above).
 15. **Isolation Forest calibration**: `CRIT_FACTOR = 1.8` in `train_iforest.py` was chosen on simulated
     faults. Re-check it with `replay_eval.py` once real fault runs have been logged.
 

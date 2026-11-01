@@ -73,14 +73,13 @@ CONFIG = {
         "rpm":          [0, 8000],     # firmware debounce limit is 7500 rpm
         "temp_c":       [-55, 125],    # DS18B20
         "current_a":    [0, 30],       # ACS712-20A, or the 30 A part
-        "flow_lpm":     [0, 200],      # YF-S201 rated 1-30 L/min, but a large pump can overrun it
         "pressure_bar": [-0.7, 5.5],   # 0-5 bar transducer; about -0.6 = no sensor signal (0 V)
         "vib_x":        [0, 16],       # ADXL345 +/-16 g full scale, per-axis AC RMS
         "vib_y":        [0, 16],
         "vib_z":        [0, 16],
         "vib_peak":     [0, 33],       # deviation from the mean: swing can exceed 16 g
     },
-    "required_fields": ["ts", "rpm", "temp_c", "current_a", "flow_lpm",
+    "required_fields": ["ts", "rpm", "temp_c", "current_a",
                         "pressure_bar", "vib_x", "vib_y", "vib_z", "float"],
     "optional_fields": ["seq", "vib_peak"],
     # Used only when the firmware does not send vib_peak: peak ~= crest * max axis RMS.
@@ -88,7 +87,7 @@ CONFIG = {
 
     # ------------------------------------------------------------------ healthy baseline (raw)
     "baseline": {
-        "rpm": 1480, "current_a": 2.1, "flow_lpm": 18.4, "pressure_bar": 2.2,
+        "rpm": 1480, "current_a": 2.1, "pressure_bar": 2.2,
         "temp_c": 38.0, "vib_rms": 0.12, "ambient_c": 27.0,
     },
 
@@ -101,8 +100,6 @@ CONFIG = {
         {"key": "current_std",   "label": "Current STD",       "unit": "A",     "mean": 0.03,  "scale": 0.04,  "dp": 3, "sensor": "current"},
         {"key": "temp_mean",     "label": "Temp mean",         "unit": "°C",    "mean": 38.0,  "scale": 2.5,   "dp": 1, "sensor": "temp"},
         {"key": "temp_slope",    "label": "Temp slope",        "unit": "°C/min","mean": 0.0,   "scale": 1.5,   "dp": 2, "sensor": "temp"},
-        {"key": "flow_mean",     "label": "Flow mean",         "unit": "L/min", "mean": 18.4,  "scale": 1.3,   "dp": 2, "sensor": "flow"},
-        {"key": "flow_std",      "label": "Flow STD",          "unit": "L/min", "mean": 0.22,  "scale": 0.30,  "dp": 3, "sensor": "flow"},
         {"key": "pressure_mean", "label": "Pressure mean",     "unit": "bar",   "mean": 2.20,  "scale": 0.16,  "dp": 3, "sensor": "pressure"},
         {"key": "pressure_std",  "label": "Pressure STD",      "unit": "bar",   "mean": 0.02,  "scale": 0.04,  "dp": 3, "sensor": "pressure"},
         {"key": "vib_rms",       "label": "Vibration RMS",     "unit": "g",     "mean": 0.120, "scale": 0.030, "dp": 3, "sensor": "vib"},
@@ -127,9 +124,8 @@ CONFIG = {
         "crit": 0.60,              # score > crit  -> CRITICAL
         "debounce_samples": 2,     # a new band must persist this many samples before it is latched
         "deadband": 0.08,          # de-escalate only once score is this far below the band threshold
-        "standby_rpm": 200,        # STANDBY only when rpm, current and flow are all below these
+        "standby_rpm": 200,        # STANDBY only when rpm and current are both below these
         "standby_current_a": 0.5,  # above the ACS712 + ESP32 ADC noise floor with the motor off
-        "standby_flow_lpm": 1.0,
         "startup_inhibit_s": 8,    # alarm inhibit after a start, while the window refills
         "channel_z_warn": 2.0,     # per-sensor tile colouring from |z| of its primary feature
         "channel_z_crit": 4.0,
@@ -142,9 +138,6 @@ CONFIG = {
         "motor_poles": 4,             # 4-pole induction motor on 50 Hz -> 1500 rpm synchronous
         "line_hz": 50.0,
         "density_kg_m3": 998.0,
-        # Pump characteristic at n0: H(Q) = h0 - k*Q^2 [bar, L/min], scaled by (n/n0)^2.
-        # CAL: fit h0 (shut-off pressure) and k from two measured points on the rig.
-        "pump_curve": {"h0_bar": 3.75, "k_bar_per_lpm2": 0.00458, "n0_rpm": 1480, "q_max_lpm": 26.0},
     },
 
     # ------------------------------------------------------------------ fault diagnosis
@@ -155,7 +148,7 @@ CONFIG = {
         "faults": {
             "restriction": {
                 "label": "Outlet restriction / blockage",
-                "signature": {"flow_mean": -1.0, "pressure_mean": 1.0, "current_rms": 0.4},
+                "signature": {"pressure_mean": 1.0, "current_rms": 0.4},
                 "action": "Check discharge valve position, outlet line and strainer for blockage.",
             },
             "imbalance": {
@@ -165,13 +158,12 @@ CONFIG = {
             },
             "overload": {
                 "label": "Motor overload / mechanical binding",
-                "signature": {"rpm_mean": -1.0, "current_rms": 1.0, "temp_slope": 0.5, "temp_mean": 0.4,
-                              "flow_mean": -0.3},
+                "signature": {"rpm_mean": -1.0, "current_rms": 1.0, "temp_slope": 0.5, "temp_mean": 0.4},
                 "action": "Check bearings and shaft for binding, supply voltage and load; stop if temperature keeps rising.",
             },
             "cavitation": {
                 "label": "Loss of prime / cavitation",
-                "signature": {"flow_mean": -1.0, "pressure_mean": -1.0, "current_rms": -0.6,
+                "signature": {"pressure_mean": -1.0, "current_rms": -0.6,
                               "vib_rms": 0.5, "vib_peak": 0.6},
                 "action": "Check inlet level, suction line for air leaks or blockage, and priming.",
             },
@@ -194,41 +186,40 @@ CONFIG = {
     "simulator": {
         "rate_hz": 1.0,
         "interlock_delay_s": 2.0,   # dry-run: float LOW -> pump tripped after this delay
-        "tau_s": {"rpm": 2.0, "current_a": 1.8, "flow_lpm": 2.5, "pressure_bar": 2.0,
+        "tau_s": {"rpm": 2.0, "current_a": 1.8, "pressure_bar": 2.0,
                   "vib": 2.0, "temp_running": 90.0, "temp_stopped": 300.0,
                   "coast_down": 0.6},   # water-loaded impeller stops in ~1-2 s
-        "noise": {"rpm": 4.0, "current_a": 0.03, "flow_lpm": 0.22, "pressure_bar": 0.02,
+        "noise": {"rpm": 4.0, "current_a": 0.03, "pressure_bar": 0.02,
                   "temp_c": 0.03, "vib_axis_rel": 0.05, "vib_peak_rel": 0.08},
         "temp_quantum_c": 0.0625,   # DS18B20 12-bit resolution
         "vib_axis_ratio": [1.0, 0.75, 1.25],   # x, y, z share of combined RMS
         "vib_crest": 3.0,
         "vib_off_g": 0.004,         # residual floor noise with pump stopped
-        # Valve: v in [0,1] closed. flow *= 1 - flow_k*v^exp; the pressure then moves along the
-        # pump curve (engineering.pump_curve): dP = k*(Q_before^2 - Q_after^2). current += cur_k*v
-        "valve": {"flow_k": 0.85, "exp": 1.3, "cur_k": 0.40, "temp_k": 3.0, "vib_k": 0.03},
+        # Valve: v in [0,1] closed. pressure += pressure_k*v^exp, current += cur_k*v
+        "valve": {"pressure_k": 1.9, "exp": 1.3, "cur_k": 0.40, "temp_k": 3.0, "vib_k": 0.03},
         # Scenario targets relative to baseline. *_mul multiplies, *_add adds.
         "scenarios": {
             "normal": {
                 "label": "Normal", "signature": "All channels at baseline",
             },
             "blockage": {
-                "label": "Outlet restriction", "signature": "Flow ↓, Pressure ↑, Current ↑",
-                "flow_mul": 0.45, "pressure_add": 1.1, "current_add": 0.35,
+                "label": "Outlet restriction", "signature": "Pressure ↑, Current ↑",
+                "pressure_add": 1.1, "current_add": 0.35,
                 "temp_add": 4.0, "vib_add": 0.04, "rpm_add": -15,
             },
             "imbalance": {
                 "label": "Mechanical imbalance", "signature": "Vibration ↑↑, Current ↑, Temp ↑",
                 "vib_mul": 3.6, "crest": 2.2, "current_add": 0.18, "temp_add": 3.0,
-                "rpm_add": -10, "flow_mul": 0.98,
+                "rpm_add": -10,
             },
             "overload": {
-                "label": "Overload", "signature": "RPM ↓, Current ↑↑, Temp ↑, Flow ↓",
-                "rpm_add": -180, "current_add": 1.2, "temp_add": 12.0, "flow_mul": 0.85,
+                "label": "Overload", "signature": "RPM ↓, Current ↑↑, Temp ↑",
+                "rpm_add": -180, "current_add": 1.2, "temp_add": 12.0,
                 "pressure_add": -0.3, "vib_add": 0.05,
             },
             "dry_run": {
-                "label": "Dry run", "signature": "Float LOW → Flow 0, Current ↓, pump trips",
-                "float": 0, "flow_mul": 0.0, "pressure_mul": 0.03, "current_mul": 0.55,
+                "label": "Dry run", "signature": "Float LOW → Current ↓, pump trips",
+                "float": 0, "pressure_mul": 0.03, "current_mul": 0.55,
                 "rpm_add": 40, "vib_add": 0.15, "crest": 4.0,
             },
         },
@@ -246,9 +237,6 @@ SENSORS = [
     {"id": "current",  "part": "ACS712",   "name": "Motor current",      "pin": "GPIO34 ADC1_CH6",
      "field": "current_a", "unit": "A",   "range": [0, 20],   "dp": 2,
      "features": ["current_rms", "current_std"]},
-    {"id": "flow",     "part": "YF-S201",  "name": "Water flow",         "pin": "GPIO27 pulse",
-     "field": "flow_lpm", "unit": "L/min", "range": [0, 40],  "dp": 2,
-     "features": ["flow_mean", "flow_std"]},
     {"id": "pressure", "part": "0–5 bar",  "name": "Outlet pressure",    "pin": "GPIO35 ADC1_CH7",
      "field": "pressure_bar", "unit": "bar", "range": [0, 5], "dp": 2,
      "features": ["pressure_mean", "pressure_std"]},

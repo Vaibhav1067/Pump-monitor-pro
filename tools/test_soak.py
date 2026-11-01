@@ -30,7 +30,7 @@ from backend.simulator import Simulator  # noqa: E402
 from backend.sources import SerialSource  # noqa: E402
 
 failures = []
-GOOD = b'{"ts":%d,"seq":%d,"rpm":1480.0,"temp_c":38.0,"current_a":2.1,"flow_lpm":18.4,"pressure_bar":2.2,"vib_x":0.1,"vib_y":0.1,"vib_z":0.1,"vib_peak":0.3,"float":1}\n'
+GOOD = b'{"ts":%d,"seq":%d,"rpm":1480.0,"temp_c":38.0,"current_a":2.1,"pressure_bar":2.2,"vib_x":0.1,"vib_y":0.1,"vib_z":0.1,"vib_peak":0.3,"float":1}\n'
 
 
 def check(cond, what):
@@ -84,9 +84,9 @@ def test_serial_line():
             b"\xc3\x28garbage at the wrong baud\r\n# esp32_pump_node ready adxl=1 acs_zero=2.501V\n")
     ok, first = probe([boot, 0.3, GOOD % (1250, 1)])
     check(ok and b'"seq":1' in first, "boot noise then data: board is recognised")
-    ok, first = probe([boot, b'{"ts":1250,"seq":1,"rpm":14', 0.2, b'80.0,"temp_c":38.0,"current_a":2.1,"flow_lpm":18.4,"pressure_bar":2.2,"vib_x":0.1,"vib_y":0.1,"vib_z":0.1,"vib_peak":0.3,"float":1}\r\n'])
+    ok, first = probe([boot, b'{"ts":1250,"seq":1,"rpm":14', 0.2, b'80.0,"temp_c":38.0,"current_a":2.1,"pressure_bar":2.2,"vib_x":0.1,"vib_y":0.1,"vib_z":0.1,"vib_peak":0.3,"float":1}\r\n'])
     check(ok, "a line split across reads and ending in CRLF is accepted")
-    ok, first = probe([b'"current_a":2.1,"flow_lpm":18.4}\n', GOOD % (2250, 2)])
+    ok, first = probe([b'"current_a":2.1,"pressure_bar":2.2}\n', GOOD % (2250, 2)])
     check(ok and b'"seq":2' in first, "joining mid-line: the half line is ignored")
     ok, why = probe([boot, b"# sensor fault: temp=0 adxl=1\n", 0.5, b"# sensor fault: temp=0 adxl=1\n"], 1.5)
     check(not ok and "temperature sensor not found" in why, f"sensor fault is named: {why}")

@@ -25,7 +25,7 @@ from backend.processor import Processor  # noqa: E402
 from backend.scorer import load_scorer  # noqa: E402
 from tools.train_skab import family  # noqa: E402
 
-CHANNELS = ("hall", "flow", "pressure", "current", "temp", "vib")
+CHANNELS = ("hall", "pressure", "current", "temp", "vib")
 
 
 def banner(frame):
@@ -47,7 +47,7 @@ def lines(path):
         a1, a2 = float(r["Accelerometer1RMS"]), float(r["Accelerometer2RMS"])
         msg = {"ts": 1000 + int((datetime.fromisoformat(r["datetime"]) - t0).total_seconds() * 1000), "seq": i + 1,
                "rpm": 1480.0, "temp_c": float(r["Temperature"]), "current_a": float(r["Current"]),
-               "flow_lpm": float(r["Volume Flow RateRMS"]), "pressure_bar": max(-0.6, float(r["Pressure"])),
+               "pressure_bar": max(-0.6, float(r["Pressure"])),
                "vib_x": a1, "vib_y": a2, "vib_z": ((a1 * a1 + a2 * a2) / 2) ** 0.5,
                "vib_peak": 3 * max(a1, a2), "float": 1}
         yield json.dumps(msg), int(float(r.get("anomaly") or 0))

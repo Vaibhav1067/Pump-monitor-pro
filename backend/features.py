@@ -35,7 +35,6 @@ def extract(window):
     rpm = [r["rpm"] for r in window]
     cur = [r["current_a"] for r in window]
     tmp = [r["temp_c"] for r in window]
-    flo = [r["flow_lpm"] for r in window]
     pre = [r["pressure_bar"] for r in window]
     vib = [r["vib_rms"] for r in window]
     return {
@@ -44,8 +43,6 @@ def extract(window):
         "current_std": _std(cur),
         "temp_mean": _mean(tmp),
         "temp_slope": _slope_per_min(ts, tmp),
-        "flow_mean": _mean(flo),
-        "flow_std": _std(flo),
         "pressure_mean": _mean(pre),
         "pressure_std": _std(pre),
         "vib_rms": _rms(vib),

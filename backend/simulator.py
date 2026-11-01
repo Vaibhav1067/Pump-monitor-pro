@@ -24,7 +24,7 @@ class Simulator:
         self.t_ms = 0
         self.seq = 0
         b = self.base
-        self.x = {"rpm": b["rpm"], "current_a": b["current_a"], "flow_lpm": b["flow_lpm"],
+        self.x = {"rpm": b["rpm"], "current_a": b["current_a"],
                   "pressure_bar": b["pressure_bar"], "vib": b["vib_rms"], "temp_c": b["temp_c"],
                   "crest": self.sc["vib_crest"]}
 
@@ -54,7 +54,7 @@ class Simulator:
     def _targets(self):
         b, s = self.base, self.sc["scenarios"][self.scenario]
         if not self.running:
-            return {"rpm": 0.0, "current_a": 0.0, "flow_lpm": 0.0, "pressure_bar": 0.0,
+            return {"rpm": 0.0, "current_a": 0.0, "pressure_bar": 0.0,
                     "vib": self.sc["vib_off_g"], "temp_c": b["ambient_c"], "crest": self.sc["vib_crest"]}
 
         def apply(base_val, key):
@@ -63,22 +63,16 @@ class Simulator:
         t = {
             "rpm": apply(b["rpm"], "rpm"),
             "current_a": apply(b["current_a"], "current"),
-            "flow_lpm": apply(b["flow_lpm"], "flow"),
             "pressure_bar": apply(b["pressure_bar"], "pressure"),
             "vib": apply(b["vib_rms"], "vib"),
             "temp_c": apply(b["temp_c"], "temp"),
             "crest": s.get("crest", self.sc["vib_crest"]),
         }
-        # Valve restriction stacks on top of any scenario. A dry pump has no
-        # liquid to restrict, so flow/pressure terms vanish naturally (flow_mul=0).
+        # Valve restriction stacks on top of any scenario. A dry pump has no liquid to restrict.
         v, vk = self.valve, self.sc["valve"]
         vp = v ** vk["exp"]
-        q_before = t["flow_lpm"]
-        t["flow_lpm"] *= max(0.0, 1.0 - vk["flow_k"] * vp)
-        if t["flow_lpm"] > 0.5:
-            # Throttling moves the duty point up the pump curve H = h0 - k Q^2.
-            k = self.cfg["engineering"]["pump_curve"]["k_bar_per_lpm2"]
-            t["pressure_bar"] += k * (q_before ** 2 - t["flow_lpm"] ** 2)
+        if t["pressure_bar"] > 0.5:
+            t["pressure_bar"] += vk["pressure_k"] * vp
             t["current_a"] += vk["cur_k"] * v
             t["temp_c"] += vk["temp_k"] * v
         t["vib"] += vk["vib_k"] * v
@@ -97,11 +91,11 @@ class Simulator:
 
         tgt = self._targets()
         tau = self.sc["tau_s"]
-        taus = {"rpm": tau["rpm"], "current_a": tau["current_a"], "flow_lpm": tau["flow_lpm"],
+        taus = {"rpm": tau["rpm"], "current_a": tau["current_a"],
                 "pressure_bar": tau["pressure_bar"], "vib": tau["vib"], "crest": tau["vib"],
                 "temp_c": tau["temp_running"] if self.running else tau["temp_stopped"]}
         if not self.running:
-            for k in ("rpm", "current_a", "flow_lpm", "pressure_bar", "vib"):
+            for k in ("rpm", "current_a", "pressure_bar", "vib"):
                 taus[k] = tau["coast_down"]
         for k, target in tgt.items():
             a = 1.0 - math.exp(-dt / taus[k])
@@ -116,7 +110,6 @@ class Simulator:
         on = x["rpm"] > 50
         rpm = max(0.0, x["rpm"] + (g(0, n["rpm"]) if on else 0))
         cur = max(0.0, x["current_a"] + g(0, n["current_a"]) * (1 if on else 0.3))
-        flow = max(0.0, x["flow_lpm"] + (g(0, n["flow_lpm"]) if x["flow_lpm"] > 0.5 else 0))
         pres = max(0.0, x["pressure_bar"] + g(0, n["pressure_bar"]))
         q = self.sc["temp_quantum_c"]
         temp = round((x["temp_c"] + g(0, n["temp_c"])) / q) * q
@@ -130,7 +123,7 @@ class Simulator:
         return {
             "ts": self.t_ms, "seq": self.seq,
             "rpm": round(rpm, 1), "temp_c": round(temp, 4), "current_a": round(cur, 3),
-            "flow_lpm": round(flow, 2), "pressure_bar": round(pres, 3),
+            "pressure_bar": round(pres, 3),
             "vib_x": round(axes[0], 4), "vib_y": round(axes[1], 4), "vib_z": round(axes[2], 4),
             "vib_peak": round(peak, 4), "float": self.float_ok,
         }

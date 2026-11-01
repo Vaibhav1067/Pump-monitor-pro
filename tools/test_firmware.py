@@ -67,17 +67,16 @@ def near(a, b, tol):
 def main():
     build()
     print("Normal running: the sketch reports what the sensors are doing")
-    cases = [("small pump", dict(rpm=1480, amps=2.0, lpm=18, bar=2.0, temp=40, vib=0.12)),
-             ("2-pole household pump", dict(rpm=2880, amps=4.5, lpm=30, bar=1.6, temp=55, vib=0.30)),
-             ("high flow past the sensor's rating", dict(rpm=2880, amps=7.0, lpm=60, bar=1.0, temp=60, vib=0.5)),
-             ("near full-scale pressure", dict(rpm=1480, amps=2.0, lpm=5, bar=4.5, temp=40, vib=0.12)),
-             ("DC motor", dict(rpm=2000, amps=3.0, lpm=12, bar=1.0, temp=35, vib=0.10, ac=0))]
+    cases = [("small pump", dict(rpm=1480, amps=2.0, bar=2.0, temp=40, vib=0.12)),
+             ("2-pole household pump", dict(rpm=2880, amps=4.5, bar=1.6, temp=55, vib=0.30)),
+             ("large pump", dict(rpm=2880, amps=7.0, bar=1.0, temp=60, vib=0.5)),
+             ("near full-scale pressure", dict(rpm=1480, amps=2.0, bar=4.5, temp=40, vib=0.12)),
+             ("DC motor", dict(rpm=2000, amps=3.0, bar=1.0, temp=35, vib=0.10, ac=0))]
     for label, c in cases:
         rows, faults, rejected, lines = run(**c)
         check(len(rows) >= 9 and not faults and not rejected, f"{label}: all lines valid ({len(rows)} readings)")
         check(near(mean(rows, "rpm"), c["rpm"], c["rpm"] * 0.03), f"{label}: speed {mean(rows, 'rpm'):.0f} vs {c['rpm']} rpm")
         check(near(mean(rows, "current_a"), c["amps"], 0.15), f"{label}: current {mean(rows, 'current_a'):.2f} vs {c['amps']} A")
-        check(near(mean(rows, "flow_lpm"), c["lpm"], c["lpm"] * 0.03), f"{label}: flow {mean(rows, 'flow_lpm'):.1f} vs {c['lpm']} L/min")
         check(near(mean(rows, "pressure_bar"), c["bar"], 0.1), f"{label}: pressure {mean(rows, 'pressure_bar'):.2f} vs {c['bar']} bar")
         check(near(mean(rows, "temp_c"), c["temp"], 0.1), f"{label}: temperature {mean(rows, 'temp_c'):.1f} vs {c['temp']} C")
         check(near(mean(rows, "vib_rms"), c["vib"], c["vib"] * 0.15), f"{label}: vibration {mean(rows, 'vib_rms'):.3f} vs {c['vib']} g (gravity removed)")
@@ -90,7 +89,7 @@ def main():
 
     print("Pump stopped")
     rows, faults, rejected, _ = run(start_s=999)
-    check(rows and mean(rows, "rpm") == 0 and mean(rows, "flow_lpm") == 0, "speed and flow read 0")
+    check(rows and mean(rows, "rpm") == 0, "speed reads 0")
     check(mean(rows, "current_a") < CONFIG["status"]["standby_current_a"], f"current noise {mean(rows, 'current_a'):.2f} A stays below the running threshold")
     rows, *_ = run(start_s=1, stop_s=6, seconds=12)
     check(rows[2]["rpm"] > 1000 and rows[-1]["rpm"] == 0, "speed returns to 0 after the pump stops")

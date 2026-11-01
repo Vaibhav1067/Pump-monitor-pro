@@ -13,10 +13,10 @@ The state lives on the Pi, so every connected HMI sees the same alarm list.
 PRIORITY = {"HIGH": 1, "MED": 2, "LOW": 3}
 
 # Instrument tags (ISA-5.1 style) for the per-channel deviation alarms.
-CHANNEL_TAG = {"hall": "ST-101", "current": "IT-101", "temp": "TT-101", "flow": "FT-101",
+CHANNEL_TAG = {"hall": "ST-101", "current": "IT-101", "temp": "TT-101",
                "pressure": "PT-101", "vib": "VT-101"}
 CHANNEL_NAME = {"hall": "Speed", "current": "Motor current", "temp": "Motor temperature",
-                "flow": "Flow", "pressure": "Outlet pressure", "vib": "Vibration"}
+                "pressure": "Outlet pressure", "vib": "Vibration"}
 
 
 class AlarmManager:

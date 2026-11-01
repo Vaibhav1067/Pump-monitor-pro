@@ -6,7 +6,7 @@ Follow these in order. It takes about 30 minutes, plus a download on first use.
 
 - **This software only warns. It cannot switch the pump off.** Keep a normal switch and breaker within reach, and don't rely on this as the pump's only protection.
 - **Mains can kill.** If the pump runs on 230 V, have someone qualified do the wiring around the current sensor, and insulate it. Turn the power off at the breaker before touching anything.
-- **Don't connect 5 V to the ESP32.** The current, pressure and flow sensors output up to 5 V and need a voltage divider, or they can destroy the ESP32 pin.
+- **Don't connect 5 V to the ESP32.** The current and pressure sensors output up to 5 V and need a voltage divider, or they can destroy the ESP32 pin.
 
 ## Wiring
 
@@ -18,7 +18,6 @@ Follow these in order. It takes about 30 minutes, plus a download on first use.
 | DS18B20 temperature | GPIO4, 3.3 V, GND | 4.7 kΩ pull-up from GPIO4 to 3.3 V. Fix it to the motor body |
 | ACS712 current | OUT through a divider to GPIO34 | 10 kΩ / 20 kΩ divider. Only the motor's live wire goes through it |
 | Pressure transducer | OUT through a divider to GPIO35 | 10 kΩ / 20 kΩ divider |
-| YF-S201 flow | Signal through a divider to GPIO27 | Follow the arrow on the sensor |
 | A3144 speed | GPIO26 | 10 kΩ pull-up to 3.3 V. One magnet on the shaft |
 | Float switch | Between GPIO25 and GND | **Closed must mean water is OK** |
 
@@ -87,6 +86,7 @@ Use the Pi's official power supply. Power the sensors' 5 V side properly too, be
 - **Restarting `start.bat` starts the learning again.** So does changing the data source.
 - **Check the alarms yourself.** Partly close the outlet valve and confirm you get a warning. Reopen it and confirm it clears.
 - **Expect some false alarms at first.** The model was trained on a different pump, so its accuracy on this one is unknown.
+- **Faults that mainly change water flow can be missed.** There is no flow sensor, so a partly blocked valve is only seen if pressure, current or vibration move too.
 
 ## If something goes wrong
 

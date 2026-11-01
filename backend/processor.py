@@ -20,7 +20,7 @@ SEVERITY = {HEALTHY: "info", STANDBY: "info", STARTING: "info", LEARNING: "info"
             CRITICAL: "crit", DRY_RUN: "crit"}
 
 _alert_ids = itertools.count(1)
-SENSOR_WORD = {"hall": "speed", "current": "current", "temp": "temperature", "flow": "flow",
+SENSOR_WORD = {"hall": "speed", "current": "current", "temp": "temperature",
                "pressure": "pressure", "vib": "vibration"}
 
 
@@ -70,7 +70,7 @@ class Processor:
         self.counters = {"received": 0, "valid": 0, "invalid": 0, "dropped": 0,
                          "skipped": 0, "invalid_by_reason": {}, "last_invalid": None}
         # Session totals (reset with the counters, not on a source switch).
-        self.totals = {"run_s": 0.0, "starts": 0, "energy_wh": 0.0, "pumped_l": 0.0}
+        self.totals = {"run_s": 0.0, "starts": 0, "energy_wh": 0.0}
         self._prev_run_ts = None
 
     # ------------------------------------------------------------------ ingest
@@ -115,8 +115,7 @@ class Processor:
     def _process(self, r, now, alerts):
         st = self.st
         # Any one sign of running counts, so a dead speed sensor can't hide a running pump as STANDBY.
-        running = (r["rpm"] >= st["standby_rpm"] or r["current_a"] >= st["standby_current_a"]
-                   or r["flow_lpm"] >= st["standby_flow_lpm"])
+        running = r["rpm"] >= st["standby_rpm"] or r["current_a"] >= st["standby_current_a"]
 
         # Float switch is a safety interlock, never an ML input.
         if self.prev_float is not None and r["float"] != self.prev_float:
@@ -153,6 +152,13 @@ class Processor:
                     normal = {f["key"]: round(f["mean"], 4) for f in live}
                 if not getattr(self.scorer, "holds_alarms", False):
                     z = standardise(features, live or self.cfg["features"])
+                if live and score is not None:
+                    # A sensor far from this pump's normal counts by itself: the model can miss
+                    # what it never trained on, and a "Healthy" status beside it would mislead.
+                    far = sum(max(abs(z[k]) for k in s["features"]) >= st["channel_z_crit"]
+                              for s in self.sensors if s["features"])
+                    if far:
+                        score = max(score, (st["crit"] if far >= 2 else st["warn"]) + 0.01)
                 if score is not None:
                     health = round((1.0 - score) * 100)
 
@@ -161,7 +167,6 @@ class Processor:
             dt = (r["ts"] - self._prev_run_ts) / 1000.0
             self.totals["run_s"] += dt
             self.totals["energy_wh"] += eng["p_in_w"] * dt / 3600.0
-            self.totals["pumped_l"] += r["flow_lpm"] * dt / 60.0
         self._prev_run_ts = r["ts"] if running else None
 
         learning_left = self.scorer.learning_left if getattr(self.scorer, "holds_alarms", False) else None

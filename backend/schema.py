@@ -2,7 +2,7 @@
 import json
 import math
 
-NUMERIC = ("rpm", "temp_c", "current_a", "flow_lpm", "pressure_bar", "vib_x", "vib_y", "vib_z", "vib_peak")
+NUMERIC = ("rpm", "temp_c", "current_a", "pressure_bar", "vib_x", "vib_y", "vib_z", "vib_peak")
 MAX_COUNTER = 2 ** 32
 
 

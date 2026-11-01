@@ -2,8 +2,7 @@
 Engineering values and rule-based fault diagnosis. Pure functions, no I/O.
 
 engineering() turns the window features into the quantities a pump engineer reads:
-hydraulic power, estimated electrical input, wire-to-water efficiency, head, specific
-energy, motor slip, vibration crest factor and the deviation from the pump curve.
+estimated electrical input, head, motor slip and vibration crest factor.
 
 diagnose() explains an anomaly: it compares the standardised feature deviation
 vector z with a signature vector per known fault (cosine similarity). It is a
@@ -14,38 +13,24 @@ import math
 G = 9.80665
 
 
-def pump_curve_bar(q_lpm, rpm, pc):
-    """H(Q, n) = h0 (n/n0)^2 - k Q^2  (affinity law for the shut-off head)."""
-    return pc["h0_bar"] * (rpm / pc["n0_rpm"]) ** 2 - pc["k_bar_per_lpm2"] * q_lpm ** 2
-
-
 def engineering(reading, features, running, cfg):
     e = cfg["engineering"]
     f = features
-    q = f["flow_mean"] if f else reading["flow_lpm"]
     p = f["pressure_mean"] if f else reading["pressure_bar"]
     i = f["current_rms"] if f else reading["current_a"]
     n = f["rpm_mean"] if f else reading["rpm"]
     vr = f["vib_rms"] if f else reading["vib_rms"]
     vp = f["vib_peak"] if f else reading["vib_peak"]
 
-    p_hyd = p * 1e5 * q / 60000.0                       # W   (outlet gauge pressure taken as pump Δp)
     p_in = e["supply_v"] * i * e["power_factor"]          # W   (estimate: V·I·PF)
     n_sync = 120.0 * e["line_hz"] / e["motor_poles"]
-    q_m3h = q * 0.06
-    curve = pump_curve_bar(q, n, e["pump_curve"]) if running else None
     out = {
-        "p_hyd_w": p_hyd,
         "p_in_w": p_in,
-        "eff_pct": (100.0 * p_hyd / p_in) if running and p_in > 5 else None,
         "head_m": p * 1e5 / (e["density_kg_m3"] * G),
-        "spec_energy_wh_m3": (p_in / q_m3h) if running and q_m3h > 0.05 else None,
         "slip_pct": (100.0 * (n_sync - n) / n_sync) if running else None,
         "n_sync_rpm": n_sync,
         "crest": (vp / vr) if vr > 1e-3 else None,
-        "curve_bar": curve,
-        "curve_dev_bar": (p - curve) if curve is not None else None,
-        "q_lpm": q, "p_bar": p,
+        "p_bar": p,
     }
     return {k: (round(v, 4) if isinstance(v, float) else v) for k, v in out.items()}
 

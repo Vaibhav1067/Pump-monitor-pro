@@ -27,9 +27,9 @@ from backend.simulator import Simulator  # noqa: E402
 BAD_LINES = [
     '{"ts": 1, "rpm": "fast"}',                                     # wrong type + missing fields
     "garbage-without-json",                                         # debug print / noise
-    '{"ts":%d,"rpm":9999,"temp_c":38,"current_a":2,"flow_lpm":18,'
+    '{"ts":%d,"rpm":9999,"temp_c":38,"current_a":2,'
     '"pressure_bar":2,"vib_x":0.1,"vib_y":0.1,"vib_z":0.1,"float":1}',  # rpm out of range
-    '{"ts":%d,"rpm":1480,"temp_c":38,"current_a":2,"flow_lpm":18',     # truncated
+    '{"ts":%d,"rpm":1480,"temp_c":38,"current_a":2',     # truncated
 ]
 
 

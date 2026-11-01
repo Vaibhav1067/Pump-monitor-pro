@@ -6,7 +6,7 @@ and export it to the JSON format backend/scorer.py:RandomForestScorer runs on th
   python tools/train_skab.py --out models/skab_forest.json
 
 SKAB's pump runs at a different operating point from ours, and even between its own runs
-(flow about 125 L/min in the healthy file, about 32 L/min in the valve runs). So nothing is
+(motor current about 2.4 A in the healthy file, about 1 A in the valve runs). So nothing is
 trained on raw values: every window becomes a deviation from the first BASELINE_WINDOWS
 windows of its own run, which is how the live scorer treats the running pump. SKAB has no
 speed sensor or vibration peak, so rpm_mean and vib_peak are not model inputs.
@@ -54,7 +54,7 @@ def run_vectors(path):
         vib = ((a1 * a1 + a2 * a2) / 2) ** 0.5
         buf.append({"ts": datetime.fromisoformat(row["datetime"]).timestamp() * 1000, "rpm": 0.0,
                     "current_a": float(row["Current"]), "temp_c": float(row["Temperature"]),
-                    "flow_lpm": float(row["Volume Flow RateRMS"]), "pressure_bar": float(row["Pressure"]),
+                    "pressure_bar": float(row["Pressure"]),
                     "vib_rms": vib, "vib_peak": vib})
         buf = buf[-size:]
         if len(buf) == size:

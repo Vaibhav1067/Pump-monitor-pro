@@ -310,7 +310,7 @@ class MqttSource:
             client.disconnect()
 
 
-REPLAY_FIELDS = ["ts", "seq", "rpm", "temp_c", "current_a", "flow_lpm", "pressure_bar",
+REPLAY_FIELDS = ["ts", "seq", "rpm", "temp_c", "current_a", "pressure_bar",
                  "vib_x", "vib_y", "vib_z", "vib_peak", "float"]
 
 

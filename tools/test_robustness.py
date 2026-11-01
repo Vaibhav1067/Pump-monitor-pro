@@ -124,10 +124,9 @@ def test_fuzz():
 
 def test_real_extremes():
     print("Unusual but real readings")
-    good = {"ts": 1000, "seq": 1, "rpm": 2880.0, "temp_c": 40.0, "current_a": 4.0, "flow_lpm": 20.0,
+    good = {"ts": 1000, "seq": 1, "rpm": 2880.0, "temp_c": 40.0, "current_a": 4.0,
             "pressure_bar": 2.0, "vib_x": 0.1, "vib_y": 0.1, "vib_z": 0.1, "vib_peak": 0.3, "float": 1}
     for label, change in [("2-pole motor at 3,000 rpm", {"rpm": 3000}), ("60 Hz 2-pole motor at 3,600 rpm", {"rpm": 3600}),
-                          ("large pump overrunning the flow sensor", {"flow_lpm": 60}),
                           ("pressure sensor unplugged (0 V)", {"pressure_bar": -0.625}),
                           ("hard knock on the accelerometer", {"vib_peak": 20}),
                           ("hot motor", {"temp_c": 110}), ("high current", {"current_a": 25}), ("cold rig", {"temp_c": -5})]:
@@ -138,8 +137,8 @@ def test_real_extremes():
 
 
 def test_different_pump():
-    print("A pump nothing like config.py (2880 rpm, 4.5 A, 55 L/min, 1.6 bar, 45 C, 0.3 g)")
-    base = dict(rpm=2880, current_a=4.5, flow_lpm=55.0, pressure_bar=1.6, temp_c=45.0, vib_rms=0.3)
+    print("A pump nothing like config.py (2880 rpm, 4.5 A, 1.6 bar, 45 C, 0.3 g)")
+    base = dict(rpm=2880, current_a=4.5, pressure_bar=1.6, temp_c=45.0, vib_rms=0.3)
     for seed in (1, 2, 3):
         rig = Rig(forest_cfg(**base), seed=seed)
         learn = rig.run(135)

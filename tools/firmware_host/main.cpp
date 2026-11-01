@@ -19,7 +19,7 @@ TwoWire Wire;
 static uint64_t nowUs = 0;
 static std::mt19937 rng(7);
 static std::normal_distribution<double> gauss(0, 1);
-static void (*flowIsr)() = nullptr, (*hallIsr)() = nullptr;
+static void (*hallIsr)() = nullptr;
 
 static double tS() { return nowUs / 1e6; }
 // The pump starts after boot, because the sketch measures the current sensor's zero at boot.
@@ -33,7 +33,6 @@ void analogSetPinAttenuation(int, int) {}
 void pinMode(int, int) {}
 int digitalRead(int pin) { return pin == PIN_FLOAT && arg("float_low", 0) == 0 ? LOW : HIGH; }
 void attachInterrupt(int pin, void (*fn)(), int) {
-  if (pin == PIN_FLOW) flowIsr = fn;
   if (pin == PIN_HALL) hallIsr = fn;
 }
 
@@ -93,16 +92,13 @@ int main(int argc, char **argv) {
   }
   double seconds = arg("seconds", 10);
   setup();
-  uint64_t nextFlow = 0, nextHall = 0;
+  uint64_t nextHall = 0;
   while (tS() < seconds) {
     loop();
     nowUs += 20;
-    double flowHz = pumpOn() ? arg("lpm", 18) * FLOW_HZ_PER_LPM : 0;
     double hallHz = pumpOn() ? arg("rpm", 1480) * HALL_MAGNETS / 60.0 : 0;
     // Fire on schedule, however long the last loop took: real interrupts don't wait for loop().
-    if (nextFlow < nowUs && flowHz > 0 && nowUs - nextFlow > 100000) nextFlow = nowUs;
     if (nextHall < nowUs && hallHz > 0 && nowUs - nextHall > 100000) nextHall = nowUs;
-    while (flowHz > 0 && nowUs >= nextFlow) { flowIsr(); nextFlow += (uint64_t)(1e6 / flowHz); }
     while (hallHz > 0 && nowUs >= nextHall) { hallIsr(); nextHall += (uint64_t)(1e6 / hallHz); }
   }
   return 0;

@@ -2,7 +2,7 @@
   esp32_pump_node.ino — ESP32 acquisition node for the Pump Health Console.
 
   Prints ONE JSON object per line at 1 Hz on USB serial (115200 8N1, '\n' terminated):
-    {"ts":123456,"seq":42,"rpm":1482.0,"temp_c":38.06,"current_a":2.12,"flow_lpm":18.40,
+    {"ts":123456,"seq":42,"rpm":1482.0,"temp_c":38.06,"current_a":2.12,
      "pressure_bar":2.301,"vib_x":0.1200,"vib_y":0.0900,"vib_z":0.1500,"vib_peak":0.412,"float":1}
   This is the contract in README.md ("Hardware-side contract"). The Pi validates every field.
 
@@ -13,7 +13,6 @@
     DS18B20   GPIO4, 4.7 kΩ pull-up to 3.3 V
     ACS712    OUT -> divider -> GPIO34 (ADC1_CH6)       ** 5 V output: MUST be divided, see README **
     Pressure  OUT -> divider -> GPIO35 (ADC1_CH7)       ** 0.5–4.5 V output: MUST be divided **
-    YF-S201   signal -> level shift/divider -> GPIO27   (5 V sensor)
     A3144     open collector -> GPIO26, 10 kΩ pull-up to 3.3 V, one magnet on the shaft
     Float     switch between GPIO25 and GND (INPUT_PULLUP). Closed = water OK -> reads LOW -> float=1.
 
@@ -28,7 +27,6 @@ constexpr int PIN_SDA = 21, PIN_SCL = 22;
 constexpr int PIN_DS18B20 = 4;
 constexpr int PIN_ACS712 = 34;
 constexpr int PIN_PRESSURE = 35;
-constexpr int PIN_FLOW = 27;
 constexpr int PIN_HALL = 26;
 constexpr int PIN_FLOAT = 25;
 
@@ -43,16 +41,13 @@ constexpr float ACS_SENS_V_PER_A = 0.100f; // ACS712-20A: 100 mV/A (05B: 0.185, 
 float acsZeroV = 2.5f;                     // measured at boot with pump OFF (sensor-side volts)
 constexpr float P_DIVIDER = 2.0f / 3.0f;   // CAL: divider on the pressure output
 constexpr float P_V_MIN = 0.5f, P_V_MAX = 4.5f, P_BAR_MAX = 5.0f;  // CAL: transducer datasheet
-constexpr float FLOW_HZ_PER_LPM = 7.5f;    // CAL: YF-S201 nominal F = 7.5 * Q (Q in L/min)
 constexpr int   HALL_MAGNETS = 1;          // pulses per revolution
 constexpr uint32_t HALL_DEBOUNCE_US = 8000;// ignore edges closer than this (max 7500 rpm), so noise can't read as huge speed
 constexpr float ADXL_G_PER_LSB = 0.0039f;  // full-resolution mode, 3.9 mg/LSB
 
 // ------------------------------------------------------------------ ISR state
-volatile uint32_t flowPulses = 0;
 volatile uint32_t hallLastUs = 0, hallPeriodSumUs = 0, hallPeriods = 0;
 
-void IRAM_ATTR onFlow() { flowPulses++; }
 void IRAM_ATTR onHall() {
   uint32_t now = micros(), dt = now - hallLastUs;
   if (dt < HALL_DEBOUNCE_US) return;
@@ -109,9 +104,7 @@ void setup() {
   analogSetPinAttenuation(PIN_ACS712, ADC_11db);
   analogSetPinAttenuation(PIN_PRESSURE, ADC_11db);
   pinMode(PIN_FLOAT, INPUT_PULLUP);
-  pinMode(PIN_FLOW, INPUT_PULLDOWN);        // an unwired pin must read no flow, not random pulses
   pinMode(PIN_HALL, INPUT_PULLUP);
-  attachInterrupt(digitalPinToInterrupt(PIN_FLOW), onFlow, RISING);
   attachInterrupt(digitalPinToInterrupt(PIN_HALL), onHall, FALLING);   // A3144 pulls low at the magnet
 
   Wire.begin(PIN_SDA, PIN_SCL, 400000);
@@ -159,11 +152,9 @@ float axisRms(double s, double ss, uint32_t n) {
 
 void report() {
   uint32_t nowMs = millis();
-  float dtS = (nowMs - lastReportMs) / 1000.0f;
   lastReportMs = nowMs;
 
   noInterrupts();
-  uint32_t pulses = flowPulses; flowPulses = 0;
   uint32_t perSum = hallPeriodSumUs, perN = hallPeriods; hallPeriodSumUs = 0; hallPeriods = 0;
   uint32_t lastEdge = hallLastUs;
   interrupts();
@@ -171,8 +162,6 @@ void report() {
   // RPM from the mean period between Hall edges (fine resolution even at 1 pulse/rev).
   float rpm = 0;
   if (perN && (micros() - lastEdge) < 500000) rpm = 60e6f / ((float)perSum / perN) / HALL_MAGNETS;
-
-  float flow = (pulses / dtS) / FLOW_HZ_PER_LPM;
 
   // The accelerometer stopped answering, or was never found: try it again, never report 0 g as real.
   bool hadVib = acc.n > 0;
@@ -210,10 +199,10 @@ void report() {
   }
   seq++;
   Serial.printf("{\"ts\":%lu,\"seq\":%lu,\"rpm\":%.1f,\"temp_c\":%.2f,\"current_a\":%.3f,"
-                "\"flow_lpm\":%.2f,\"pressure_bar\":%.3f,\"vib_x\":%.4f,\"vib_y\":%.4f,"
+                "\"pressure_bar\":%.3f,\"vib_x\":%.4f,\"vib_y\":%.4f,"
                 "\"vib_z\":%.4f,\"vib_peak\":%.4f,\"float\":%d}\n",
                 (unsigned long)nowMs, (unsigned long)seq, rpm, lastTempC, iRms,
-                flow, pBar, vx, vy, vz, pk, floatOk);
+                pBar, vx, vy, vz, pk, floatOk);
 }
 
 void loop() {

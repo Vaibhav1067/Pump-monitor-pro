@@ -57,8 +57,6 @@ def judge(rows):
     out.append(("Speed", m >= 200, f"{m:.0f} rpm" if m >= 200 else "reads 0. Check the A3144 on GPIO26, its 10 kOhm pull-up and the magnet gap"))
     lo, hi, m = spread("current_a")
     out.append(("Current", m >= 0.1, f"{m:.2f} A" if m >= 0.1 else "reads 0. Check the ACS712 on GPIO34 and its divider, and that it carries the motor's live wire"))
-    lo, hi, m = spread("flow_lpm")
-    out.append(("Flow", m > 0.2, f"{m:.1f} L/min" if m > 0.2 else "reads 0. Check the YF-S201 on GPIO27, its arrow direction, and that water is moving"))
     lo = min(r["pressure_raw"] for r in rows)
     m = spread("pressure_bar")[2]
     out.append(("Pressure", lo > -0.3, f"{m:.2f} bar" if lo > -0.3 else "no signal. Check its 5 V supply, the divider and GPIO35"))
