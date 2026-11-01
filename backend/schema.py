@@ -3,6 +3,7 @@ import json
 import math
 
 NUMERIC = ("rpm", "temp_c", "current_a", "flow_lpm", "pressure_bar", "vib_x", "vib_y", "vib_z", "vib_peak")
+MAX_COUNTER = 2 ** 32
 
 
 class Invalid(Exception):
@@ -14,7 +15,12 @@ class Invalid(Exception):
 
 def _num(v):
     # bool is a subclass of int in Python; reject it explicitly.
-    return isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
+    if isinstance(v, bool) or not isinstance(v, (int, float)):
+        return False
+    try:
+        return math.isfinite(v)
+    except OverflowError:       # an integer too large for a float
+        return False
 
 
 def parse_line(line, cfg):
@@ -34,7 +40,7 @@ def parse_line(line, cfg):
         raise Invalid("not_json", line[:40])
     try:
         msg = json.loads(line)
-    except json.JSONDecodeError as e:
+    except (ValueError, RecursionError) as e:    # JSONDecodeError is a ValueError
         raise Invalid("parse", str(e)[:60])
     if not isinstance(msg, dict):
         raise Invalid("parse", "not an object")
@@ -48,12 +54,13 @@ def validate(msg, cfg):
 
     out = {}
     ts = msg["ts"]
-    if not _num(ts) or ts < 0:
+    # Both are 32-bit counters on the ESP32; one corrupted huge value must not reach the arithmetic.
+    if not _num(ts) or not 0 <= ts <= MAX_COUNTER:
         raise Invalid("type", "ts")
     out["ts"] = int(ts)
 
     if "seq" in msg:
-        if not _num(msg["seq"]):
+        if not _num(msg["seq"]) or not 0 <= msg["seq"] <= MAX_COUNTER:
             raise Invalid("type", "seq")
         out["seq"] = int(msg["seq"])
 
@@ -79,5 +86,6 @@ def validate(msg, cfg):
     out["vib_rms"] = math.sqrt((x * x + y * y + z * z) / 3.0)
     if "vib_peak" not in out:
         out["vib_peak"] = max(x, y, z) * cfg["vib_peak_crest_fallback"]
+    out["pressure_raw"] = out["pressure_bar"]      # lets the dashboard spot a missing transducer
     out["pressure_bar"] = max(0.0, out["pressure_bar"])
     return out

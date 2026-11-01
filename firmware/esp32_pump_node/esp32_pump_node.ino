@@ -45,7 +45,7 @@ constexpr float P_DIVIDER = 2.0f / 3.0f;   // CAL: divider on the pressure outpu
 constexpr float P_V_MIN = 0.5f, P_V_MAX = 4.5f, P_BAR_MAX = 5.0f;  // CAL: transducer datasheet
 constexpr float FLOW_HZ_PER_LPM = 7.5f;    // CAL: YF-S201 nominal F = 7.5 * Q (Q in L/min)
 constexpr int   HALL_MAGNETS = 1;          // pulses per revolution
-constexpr uint32_t HALL_DEBOUNCE_US = 2000;// ignore edges closer than this (max 30 000 rpm)
+constexpr uint32_t HALL_DEBOUNCE_US = 8000;// ignore edges closer than this (max 7500 rpm), so noise can't read as huge speed
 constexpr float ADXL_G_PER_LSB = 0.0039f;  // full-resolution mode, 3.9 mg/LSB
 
 // ------------------------------------------------------------------ ISR state
@@ -63,6 +63,8 @@ void IRAM_ATTR onHall() {
 OneWire oneWire(PIN_DS18B20);
 DallasTemperature ds(&oneWire);
 float lastTempC = NAN;
+int tempFails = 0;
+constexpr int TEMP_MAX_FAILS = 5;          // one bad read keeps the last value; this many reports a fault
 
 // ------------------------------------------------------------------ ADXL345 (raw I2C, no library)
 constexpr uint8_t ADXL = 0x53;
@@ -107,7 +109,7 @@ void setup() {
   analogSetPinAttenuation(PIN_ACS712, ADC_11db);
   analogSetPinAttenuation(PIN_PRESSURE, ADC_11db);
   pinMode(PIN_FLOAT, INPUT_PULLUP);
-  pinMode(PIN_FLOW, INPUT);
+  pinMode(PIN_FLOW, INPUT_PULLDOWN);        // an unwired pin must read no flow, not random pulses
   pinMode(PIN_HALL, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(PIN_FLOW), onFlow, RISING);
   attachInterrupt(digitalPinToInterrupt(PIN_HALL), onHall, FALLING);   // A3144 pulls low at the magnet
@@ -172,6 +174,10 @@ void report() {
 
   float flow = (pulses / dtS) / FLOW_HZ_PER_LPM;
 
+  // The accelerometer stopped answering, or was never found: try it again, never report 0 g as real.
+  bool hadVib = acc.n > 0;
+  if (!hadVib) adxlOk = adxlInit();
+
   float vx = axisRms(acc.sx, acc.sxx, acc.n), vy = axisRms(acc.sy, acc.syy, acc.n), vz = axisRms(acc.sz, acc.szz, acc.n);
   float pk = 0;
   if (acc.n) {   // peak absolute deviation from the per-axis mean
@@ -191,14 +197,15 @@ void report() {
 
   // DS18B20: read the conversion started a second ago, start the next one.
   float t = ds.getTempCByIndex(0);
-  if (t != DEVICE_DISCONNECTED_C && t > -55) lastTempC = t;
+  if (t != DEVICE_DISCONNECTED_C && t > -55) { lastTempC = t; tempFails = 0; }
+  else if (++tempFails >= TEMP_MAX_FAILS) lastTempC = NAN;   // never keep sending a frozen value
   ds.requestTemperatures();
 
   int floatOk = digitalRead(PIN_FLOAT) == LOW ? 1 : 0;
 
-  if (isnan(lastTempC) || !adxlOk) {
+  if (isnan(lastTempC) || !adxlOk || !hadVib) {
     // Report the fault instead of sending made-up numbers; the Pi counts it as invalid.
-    Serial.printf("# sensor fault: temp=%d adxl=%d\n", !isnan(lastTempC), adxlOk);
+    Serial.printf("# sensor fault: temp=%d adxl=%d\n", !isnan(lastTempC), adxlOk && hadVib);
     return;
   }
   seq++;

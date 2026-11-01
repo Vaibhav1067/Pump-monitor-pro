@@ -110,6 +110,7 @@ class Hub:
         self.source = new
         self.mode = kind
         self.cfg["source"] = kind
+        self._sync_scorer()
         self.processor.reset()
         self.alarm_mgr.clear()
         self.last_valid = None
@@ -123,6 +124,7 @@ class Hub:
 
     async def _went_live(self, ser):
         """Auto mode: the first valid ESP32 message arrived. Drop the simulated history."""
+        self._sync_scorer()
         self.processor.reset()
         self.alarm_mgr.clear()
         self.history.clear()
@@ -131,10 +133,15 @@ class Hub:
         self.paused = False
         if self.logger.enabled:
             self.logger.start("serial")          # keep real data in its own CSV
-        a = make_alert(time.time(), "info", f"ESP32 connected on {ser.port} — showing live data")
+        a = make_alert(time.time(), "info", f"ESP32 connected on {ser.port}, showing live data")
         a["toast"] = "good"
         await self._alert(a)
         await self.broadcast(self.hello())
+
+    def _sync_scorer(self):
+        """A real pump gets no hand-set stand-in while its normal is being learned."""
+        if hasattr(self.scorer, "fallback_on"):
+            self.scorer.fallback_on = not self.source.live
 
     async def _run_source(self, src):
         try:
@@ -151,7 +158,14 @@ class Hub:
             return
         now = time.time()
         t0 = time.perf_counter()
-        res = self.processor.ingest(line, now)
+        try:
+            res = self.processor.ingest(line, now)
+        except Exception as e:      # one bad message must never stop the stream
+            c = self.processor.counters
+            c["invalid"] += 1
+            c["invalid_by_reason"]["internal"] = c["invalid_by_reason"].get("internal", 0) + 1
+            c["last_invalid"] = {"t": now, "reason": "internal", "detail": repr(e)[:80]}
+            return
         if not res["ok"]:
             return
         frame = res["frame"]
@@ -161,7 +175,13 @@ class Hub:
         self.last_valid = now
         self.rx_times.append(now)
         self.history.append(frame)
-        self.logger.write(frame, self.source.kind)
+        try:
+            self.logger.write(frame, self.source.kind)
+        except (OSError, ValueError) as e:      # disk full or file removed: keep monitoring
+            self.logger.stop()
+            a = make_alert(now, "warn", f"Recording stopped: could not write the file ({e})")
+            a["toast"] = "crit"
+            await self._alert(a)
         await self.broadcast(frame)
         for a in res["alerts"]:
             await self._alert(a)
@@ -340,6 +360,9 @@ class Hub:
             self.replay_file = val
             if self.source.kind == "replay":
                 await self.set_source("replay")
+        elif cmd == "relearn":
+            self.processor.relearn()
+            await self._alert(make_alert(time.time(), "info", "Learning this pump's normal running again"))
         elif cmd == "reset_counters":
             self.processor.reset_counters()
         elif cmd in ("ack_alarm", "ack_all"):
@@ -367,6 +390,14 @@ def create_app(cfg):
     @app.get("/")
     async def index():
         return FileResponse(WEB, headers={"Cache-Control": "no-store"})
+
+    @app.get("/{name}.css")
+    async def stylesheet(name: str):
+        # Only the page's own stylesheets (tokens.css, base.css), never an arbitrary path.
+        if name not in ("tokens", "base"):
+            return JSONResponse({"error": "not found"}, status_code=404)
+        return FileResponse(os.path.join(ROOT, "web", f"{name}.css"), media_type="text/css",
+                            headers={"Cache-Control": "no-store"})
 
     @app.get("/api/state")
     async def api_state():

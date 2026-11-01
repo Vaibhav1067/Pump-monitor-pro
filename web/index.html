@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>P-101 · Pump Health Console</title>
-<meta name="description" content="Condition monitoring for the P-101 centrifugal pump test rig">
-<meta name="theme-color" content="#171719">
+<title>P-101 test rig, Pump Health Console</title>
+<meta name="description" content="Condition monitoring for the P-101 centrifugal pump test rig: live readings, anomaly score and fault diagnosis.">
+<meta name="theme-color" content="#1b1d21">
 <script>
   (function () {
     var pref = "dark";
@@ -16,422 +16,422 @@
   })();
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Host+Grotesk:wght@400;500&family=Atkinson+Hyperlegible+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-/* Style: data-terminal. Cards darker than the ground, digits that stack, signs in the text,
-   and every selection marked by one 1px accent line as wide as its label. Colour on data only. */
-:root, :root[data-theme="dark"] {
-  --ground: #171719;
-  --surface: #131217;
-  --raised: #212023;
-  --border: #222224;
-  --rule: #1b1a1f;
-  --control: #3a3a3e;
-  --text: #ffffff;
-  --text-2: #bdbdc0;
-  --muted: #8a8c92;
-  --accent: #4a8ad6;
-  --positive: #44a282;
-  --negative: #e5566f;
-  --warning: #d9a441;
-  --chart-1: #f2f2f3;
-  --pill-positive-bg: #1b2828; --pill-positive-ink: #5fc39c;
-  --pill-negative-bg: #2c1a20; --pill-negative-ink: #e5566f;
-  --pill-warning-bg: #2a2416; --pill-warning-ink: #d9a441;
-  --pill-neutral-bg: #212023; --pill-neutral-ink: #bdbdc0;
-  --shadow: 0 12px 28px rgba(0,0,0,.2);
-  --cell-ok: #2c2c31;
-  color-scheme: dark;
-}
-:root[data-theme="light"] {
-  --ground: #f2f2f4;
-  --surface: #ffffff;
-  --raised: #f2f2f4;
-  --border: #e3e3e7;
-  --rule: #ececef;
-  --control: #e6e6ea;
-  --text: #111114;
-  --text-2: #3c3d43;
-  --muted: #5f616a;
-  --accent: #2f6fbf;
-  --positive: #23795c;
-  --negative: #c23552;
-  --warning: #8f6408;
-  --chart-1: #1b1b1f;
-  --pill-positive-bg: #e3f2ec; --pill-positive-ink: #1d6b51;
-  --pill-negative-bg: #fbe6ea; --pill-negative-ink: #b02c48;
-  --pill-warning-bg: #f8efd9; --pill-warning-ink: #7d5606;
-  --pill-neutral-bg: #ececef; --pill-neutral-ink: #3c3d43;
-  --shadow: 0 1px 2px rgba(0,0,0,.05);
-  --cell-ok: #d9d9de;
-  color-scheme: light;
-}
-* { box-sizing: border-box; }
-html, body { margin: 0; }
-body { background: var(--ground); color: var(--text); font: 13px/1.5 "Public Sans", system-ui, sans-serif;
-  font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased; overflow-x: hidden; }
-button, select, input { font: inherit; color: inherit; }
-:focus-visible { outline: 1px solid var(--accent); outline-offset: 2px; }
-.muted { color: var(--muted); }
-.sel { box-shadow: inset 0 -1px 0 var(--accent); }
+/* Hallmark · shape: app screen · genre: modern-minimal · theme: Console (deal 3/3, seed condition-monitoring-console-centrifugal-d0df·f86331ae·2026-10-29·r0) · redesign: full
+ * nav: a top bar, wordmark, five in-page links, rig and record actions · signature: the per-second status record of the last two minutes · states: loading, empty, error, full · console: graphite (dark), paper (light)
+ * axes: dark/grotesk-sans/chromatic-amber · posture: restrained · contrast: pass · v2.0.0 */
+/* Hallmark · pre-emit critique: P4 H5 E4 S4 R4 V4 · weakest: P, a monitoring screen argues little; it leads with one reading set large and the second-by-second record instead of a row of equal tiles */
+/* Hallmark · reworded "P-101 test rig Offline" to "P-101 test rig" · 38iii named the status chip set inside the head, now beside it */
+/* Hallmark · dismissed 23 · the amber cells and bars are deviations by meaning, sized by live data, and a whole-window fault is the screen telling the truth */
+/* Hallmark · dismissed kept-figures · the recorded figures were live readings and clock times, which change every second */
+@import url("./tokens.css");
+@import url("./base.css");
 
-/* ------------------------------------------------------------ icon rail */
-.rail { position: fixed; inset: 0 auto 0 0; width: 55px; background: var(--ground); border-right: 1px solid var(--border);
-  display: flex; flex-direction: column; align-items: center; padding: 14px 0; gap: 4px; z-index: 5; }
-.rail .brand { width: 28px; height: 28px; margin-bottom: 18px; }
-.rail .brand circle { fill: none; stroke: var(--text); stroke-width: 1.6; }
-.rail .brand path { fill: var(--text); }
-.rail a, .rail button { position: relative; width: 55px; height: 40px; display: grid; place-items: center; color: var(--muted);
-  background: none; border: 0; cursor: pointer; }
-.rail a:hover, .rail button:hover { color: var(--text); }
-.rail a[aria-current="true"] { color: var(--text); }
-.rail a[aria-current="true"]::after { content: ""; position: absolute; right: -1px; top: 12px; bottom: 12px; width: 1px; background: var(--accent); }
-.rail svg.i { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
-.rail .hr { width: 20px; height: 1px; background: var(--border); margin: 8px 0; }
-.rail .bottom { margin-top: auto; }
-.rail [data-tip]:hover::before { content: attr(data-tip); position: absolute; left: 52px; top: 50%; transform: translateY(-50%);
-  background: var(--raised); color: var(--text); padding: 4px 8px; border-radius: 4px; font-size: 12px; white-space: nowrap; box-shadow: var(--shadow); }
+body { font-size: var(--text-sm); line-height: 1.5; }
+.measured, .num { font-family: var(--font-outlier); font-variant-numeric: tabular-nums slashed-zero; }
+.muted { color: var(--color-muted); }
 
-/* ------------------------------------------------------------ page */
-.page { margin-left: 55px; padding: 28px 32px 48px; max-width: 1400px; }
-.title-row { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 16px 24px; margin-bottom: 24px; }
-.title-row h1 { margin: 0; font-size: 26px; font-weight: 600; letter-spacing: -.01em; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.title-row .finding { margin: 6px 0 0; color: var(--text-2); font-size: 14px; max-width: 70ch; }
-.title-row .right { margin-left: auto; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.pill { display: inline-flex; align-items: center; height: 22px; padding: 0 9px; border-radius: 999px; font-size: 12px; font-weight: 600;
-  background: var(--pill-neutral-bg); color: var(--pill-neutral-ink); white-space: nowrap; }
-.pill.good { background: var(--pill-positive-bg); color: var(--pill-positive-ink); }
-.pill.warn { background: var(--pill-warning-bg); color: var(--pill-warning-ink); }
-.pill.crit { background: var(--pill-negative-bg); color: var(--pill-negative-ink); }
-.src-line { color: var(--muted); font-size: 12px; white-space: nowrap; }
-.btn { height: 34px; padding: 0 16px; border-radius: 999px; border: 0; background: var(--control); color: var(--text); font-weight: 600; cursor: pointer; }
-.btn:hover:not(:disabled) { filter: brightness(1.15); }
-.btn:disabled { opacity: .45; cursor: not-allowed; }
-.btn.invert { background: var(--text); color: var(--ground); }
+/* ---------------------------------------------------------------- top bar */
+.bar { position: sticky; top: 0; z-index: var(--z-sticky-nav); background: var(--color-paper); border-bottom: var(--rule-hair) solid var(--color-rule); }
+.bar-in { max-width: var(--container); margin-inline: auto; padding-inline: var(--space-lg); min-height: var(--bar-h);
+  display: flex; align-items: center; gap: var(--space-lg); }
+.wordmark { display: flex; align-items: center; gap: var(--space-xs); font-weight: 500; font-size: var(--text-md); color: var(--color-ink); text-decoration: none; white-space: nowrap; }
+.wordmark svg { width: 24px; height: 24px; flex-shrink: 0; }
+.wordmark circle { fill: none; stroke: var(--color-ink); stroke-width: 1.5; }
+.wordmark path { fill: var(--color-ink); }
+.sections { display: flex; gap: var(--space-2xs); overflow-x: auto; scrollbar-width: none; min-width: 0; }
+.sections a { padding: var(--space-xs) var(--space-sm); border-radius: var(--radius-pill); color: var(--color-muted); text-decoration: none; white-space: nowrap;
+  transition: color var(--dur-micro) var(--ease-out), background-color var(--dur-micro) var(--ease-out); }
+.sections a:hover { color: var(--color-ink); background: var(--color-paper-2); }
+.sections a:active { background: var(--color-paper-3); }
+.sections a[aria-current="true"] { color: var(--color-ink); background: var(--color-paper-2); }
+.bar-end { margin-left: auto; display: flex; align-items: center; gap: var(--space-sm); }
+#srcLine { color: var(--color-muted); white-space: nowrap; }
 
-.grid { display: grid; gap: 24px; grid-template-columns: minmax(0, 1fr) 360px; align-items: start; }
-.col { display: grid; gap: 24px; min-width: 0; }
-.card { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; box-shadow: var(--shadow); min-width: 0; }
-.card-head { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px; padding: 16px 20px 0; }
-.card-head h2 { margin: 0; font-size: 16px; font-weight: 600; }
-.card-head .meta { color: var(--muted); font-size: 12px; }
-.card-body { padding: 14px 20px 18px; }
+/* ---------------------------------------------------------------- controls: one filled primary, the rest outlined */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-xs); min-height: 36px; padding: var(--space-xs) var(--space-md);
+  border: var(--rule-hair) solid var(--color-rule-2); border-radius: var(--radius-pill); background: var(--color-paper-2); color: var(--color-ink);
+  font-weight: 500; cursor: pointer; white-space: nowrap; position: relative;
+  transition: background-color var(--dur-micro) var(--ease-out), border-color var(--dur-micro) var(--ease-out); }
+.btn::after { content: ""; position: absolute; inset: -4px; }
+.btn:hover:not(:disabled) { background: var(--color-paper-3); border-color: var(--color-muted); }
+.btn:active:not(:disabled) { transform: translateY(1px); }
+.btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.btn--primary { background: var(--color-accent); border-color: var(--color-accent); color: var(--color-accent-ink); }
+.btn--primary:hover:not(:disabled) { background: var(--color-accent); border-color: var(--color-ink); }
+.btn--icon { padding: var(--space-xs); min-width: 36px; }
+.btn svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 
-/* ------------------------------------------------------------ KPI line: type, not tiles */
-.kpis { display: grid; grid-template-columns: 1.3fr repeat(6, minmax(0, 1fr)); }
-.kpi { padding: 16px 20px; min-width: 0; }
-.kpi + .kpi { border-left: 1px solid var(--rule); }
-.kpi .k { color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.kpi .v { font-size: 20px; font-weight: 600; margin-top: 4px; white-space: nowrap; }
-.kpi .v small { font-size: 12px; font-weight: 400; color: var(--muted); margin-left: 3px; }
-.kpi .d { font-size: 12px; color: var(--muted); margin-top: 2px; white-space: nowrap; }
-.kpi .d.flag { color: var(--text); }
-.kpi .d.flag::before { content: "● "; font-size: 9px; vertical-align: 1px; }
-.kpi .d.flag.warn::before { color: var(--warning); } .kpi .d.flag.crit::before { color: var(--negative); }
-.kpi.health .v { font-size: 32px; line-height: 1.1; }
-.kpi.health .v small { font-size: 14px; }
+.chip { display: inline-flex; align-items: center; min-height: 24px; padding: 0 var(--space-xs); border: var(--rule-hair) solid var(--color-rule-2);
+  border-radius: 4px; font-size: var(--text-xs); font-weight: 500; color: var(--color-ink-2); background: var(--color-paper-2); white-space: nowrap; }
+.chip.good { background: var(--color-ok-soft); border-color: var(--color-ok); color: var(--color-ink); }
+.chip.warn { background: var(--color-accent-soft); border-color: var(--color-accent); color: var(--color-ink); }
+.chip.crit { background: var(--color-bad-soft); border-color: var(--color-bad); color: var(--color-ink); }
 
-/* ------------------------------------------------------------ status strip (signature) */
-.strip { display: grid; grid-template-columns: repeat(120, minmax(0, 1fr)); gap: 1px; height: 28px; margin-top: 4px; }
-.strip i { background: var(--rule); }
-.strip i.ok { background: var(--cell-ok); } .strip i.warn { background: var(--warning); } .strip i.crit { background: var(--negative); }
-.strip i.idle { background: var(--rule); }
-.strip-axis { display: flex; justify-content: space-between; color: var(--muted); font-size: 12px; margin-top: 6px; }
-.strip-sum { display: flex; flex-wrap: wrap; gap: 4px 20px; margin-top: 12px; font-size: 12.5px; color: var(--text-2); }
-.strip-sum b { color: var(--text); font-weight: 600; }
+/* ---------------------------------------------------------------- page */
+main { max-width: var(--container); margin-inline: auto; padding: var(--space-lg) var(--space-lg) var(--space-2xl); display: grid; gap: var(--space-lg); }
+.head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-xs) var(--space-sm); }
+.head h1 { font-size: var(--text-display); max-width: none; }
+#finding { margin-top: var(--space-2xs); color: var(--color-ink-2); font-size: var(--text-md); max-width: 75ch; }
 
-/* ------------------------------------------------------------ tabs: 1px accent line as wide as the label */
-.tabs { display: flex; flex-wrap: wrap; gap: 18px; margin-left: auto; }
-.tabs button { background: none; border: 0; padding: 4px 0; color: var(--muted); cursor: pointer; font-size: 13px; }
-.tabs button:hover { color: var(--text); }
-.tabs button[aria-pressed="true"] { color: var(--text); box-shadow: inset 0 -1px 0 var(--accent); }
+/* Panels: one surface, cut by 1px seams. */
+.panel { border: var(--rule-hair) solid var(--color-rule); border-radius: var(--radius-card); background: var(--color-paper-2); min-width: 0; }
+.panel-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2xs) var(--space-sm); padding: var(--space-md) var(--space-lg) 0; }
+.panel-head h2 { font-size: var(--text-section); max-width: none; }
+.panel-head .meta { color: var(--color-muted); font-size: var(--text-xs); }
+.panel-body { padding: var(--space-md) var(--space-lg) var(--space-lg); }
+.pair { display: grid; gap: var(--space-lg); grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr); align-items: start; }
 
-/* ------------------------------------------------------------ chart */
-.chart-wrap { position: relative; padding: 6px 12px 8px 4px; }
-#chart { display: block; width: 100%; height: 280px; }
-#chart .grid line { stroke: var(--rule); }
-#chart text { fill: var(--muted); font-size: 12px; font-family: "Public Sans", system-ui, sans-serif; font-variant-numeric: tabular-nums; }
-#chart .series { fill: none; stroke: var(--chart-1); stroke-width: 1.5; stroke-linejoin: round; }
-#chart .end { fill: var(--chart-1); }
-#chart text.end-label { fill: var(--text); font-weight: 600; }
-#chart .th-warn { stroke: var(--warning); stroke-dasharray: 3 3; } #chart .th-crit { stroke: var(--negative); stroke-dasharray: 3 3; }
-#chart .base { stroke: var(--muted); stroke-dasharray: 2 3; }
-#chart .band-warn { fill: var(--warning); opacity: .10; } #chart .band-crit { fill: var(--negative); opacity: .12; }
-#chart .cross { stroke: var(--muted); }
-.tip { position: absolute; top: 10px; display: none; pointer-events: none; background: var(--raised); border-radius: 4px;
-  padding: 4px 8px; font-size: 12px; white-space: nowrap; box-shadow: var(--shadow); }
+/* ---------------------------------------------------------------- readings: one value large, six beside it */
+#kpis { display: grid; grid-template-columns: minmax(0, 1.2fr) repeat(3, minmax(0, 1fr)); gap: var(--rule-hair); background: var(--color-rule);
+  border: var(--rule-hair) solid var(--color-rule); border-radius: var(--radius-card); overflow: hidden; }
+#kpis > .kpi { background: var(--color-paper-2); padding: var(--space-md) var(--space-lg); min-width: 0; }
+#kpis > .kpi.health { grid-row: span 2; display: flex; flex-direction: column; justify-content: space-between; gap: var(--space-md); }
+.kpi .k { color: var(--color-muted); font-weight: 500; font-size: var(--text-xs); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kpi .v { margin-top: var(--space-2xs); font-family: var(--font-outlier); font-size: var(--text-xl); color: var(--color-ink); white-space: nowrap; font-variant-numeric: tabular-nums slashed-zero; }
+.kpi .v small { font-size: var(--text-xs); color: var(--color-muted); margin-left: var(--space-2xs); }
+.kpi .d { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-muted); white-space: nowrap; }
+.kpi .d.warn { color: var(--color-accent); } .kpi .d.crit { color: var(--color-bad); }
+.kpi.health .v { font-size: var(--text-3xl); letter-spacing: -0.04em; line-height: 1; }
+.kpi.health .v span { font-size: 4.5rem; }
+.meter { display: grid; grid-template-columns: repeat(40, minmax(0, 1fr)); gap: var(--space-3xs); height: 12px; }
+.meter i { background: var(--color-rule); border-radius: 1px; }
+.meter.good i.on { background: var(--color-ok); } .meter.warn i.on { background: var(--color-accent); }
+.meter.crit i.on { background: var(--color-bad); } .meter.idle i.on { background: var(--color-muted); }
 
-/* ------------------------------------------------------------ diagnosis */
-.diag-title { font-size: 16px; font-weight: 600; margin: 2px 0 4px; }
-.diag-text { color: var(--text-2); }
-.devs { list-style: none; margin: 14px 0 0; padding: 0; }
-.devs li { display: grid; grid-template-columns: minmax(0, 1fr) 72px 60px; gap: 12px; align-items: center; height: 28px; }
-.devs .bar { height: 4px; background: var(--rule); position: relative; }
-.devs .bar i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--chart-1); }
-.devs .z { text-align: right; color: var(--text-2); }
-.section-label { color: var(--muted); font-size: 12px; margin: 16px 0 4px; }
+/* ---------------------------------------------------------------- needs attention */
+#issues .panel-head h2 { color: var(--color-ink); }
+#issueList { list-style: none; margin: 0; padding: var(--space-xs) 0 var(--space-sm); }
+#issueList li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--space-2xs) var(--space-sm); padding: var(--space-sm) var(--space-lg); }
+#issueList li + li { border-top: var(--rule-hair) solid var(--color-rule); }
+#issueList .it { font-weight: 500; color: var(--color-ink); }
+#issueList .fx { grid-column: 2; color: var(--color-ink-2); }
+#issueList .fx b { font-weight: 500; color: var(--color-ink); }
 
-/* ------------------------------------------------------------ controls */
-.opts { list-style: none; margin: 0; padding: 0; }
-.opts button { display: block; width: 100%; text-align: left; background: none; border: 0; padding: 7px 0; cursor: pointer; }
-.opts button + button { border-top: 1px solid var(--rule); }
-.opts .l { display: inline-block; color: var(--text-2); padding-bottom: 2px; }
-.opts .s { display: block; color: var(--muted); font-size: 12px; }
-.opts button[aria-pressed="true"] .l { color: var(--text); font-weight: 600; box-shadow: inset 0 -1px 0 var(--accent); }
-.opts button:disabled { cursor: not-allowed; opacity: .5; }
-.field { display: flex; justify-content: space-between; margin: 18px 0 8px; }
-input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
-.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 18px; }
-select.src { width: 100%; height: 34px; border-radius: 999px; border: 0; background: var(--control); padding: 0 14px; margin-top: 6px; }
-.note { margin-top: 8px; color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
-.note.err { color: var(--negative); }
+/* ---------------------------------------------------------------- the per-second record (signature) */
+.strip { display: grid; grid-template-columns: repeat(120, minmax(0, 1fr)); gap: 1px; height: 40px; }
+.strip i { background: var(--color-paper-3); }
+.strip i.ok { background: var(--color-rule-2); } .strip i.warn { background: var(--color-accent); } .strip i.crit { background: var(--color-bad); }
+.strip i.idle { background: var(--color-rule); }
+.strip-axis { display: flex; justify-content: space-between; margin-top: var(--space-xs); color: var(--color-muted); font-family: var(--font-outlier); font-size: var(--text-xs); }
+.strip-sum { display: flex; flex-wrap: wrap; gap: var(--space-2xs) var(--space-lg); margin-top: var(--space-md); color: var(--color-muted); }
+.strip-sum b { font-family: var(--font-outlier); font-weight: 400; color: var(--color-ink); }
 
-/* ------------------------------------------------------------ tables */
+/* ---------------------------------------------------------------- trend */
+.tabs { display: flex; flex-wrap: nowrap; gap: var(--space-2xs); overflow-x: auto; margin-left: auto; scrollbar-width: none; }
+.tabs button { min-height: 32px; padding: 0 var(--space-sm); border: var(--rule-hair) solid transparent; border-radius: 4px; background: none; color: var(--color-muted);
+  font-size: var(--text-xs); font-weight: 500; cursor: pointer; white-space: nowrap; transition: color var(--dur-micro) var(--ease-out), background-color var(--dur-micro) var(--ease-out); }
+.tabs button:hover { color: var(--color-ink); background: var(--color-paper-3); }
+.tabs button:active { background: var(--color-rule); }
+.tabs button[aria-pressed="true"] { color: var(--color-ink); border-color: var(--color-cool); }
+.chart-wrap[data-empty]::after { content: attr(data-empty); position: absolute; inset: 0; display: grid; place-items: center; color: var(--color-muted); }
+.chart-wrap { position: relative; padding: var(--space-xs) var(--space-sm) var(--space-sm) var(--space-2xs); }
+#chart { display: block; width: 100%; height: 260px; }
+#chart .grid line { stroke: var(--color-rule); }
+#chart text { fill: var(--color-muted); font-family: var(--font-outlier); font-size: 11px; font-variant-numeric: tabular-nums; }
+#chart .series { fill: none; stroke: var(--color-cool); stroke-width: 1.75; stroke-linejoin: round; }
+#chart .end { fill: var(--color-cool); }
+#chart text.end-label { fill: var(--color-ink); }
+#chart .th-warn { stroke: var(--color-accent); stroke-dasharray: 3 3; } #chart .th-crit { stroke: var(--color-bad); stroke-dasharray: 3 3; }
+#chart .base { stroke: var(--color-muted); stroke-dasharray: 2 3; }
+#chart .band-warn { fill: var(--color-accent-soft); } #chart .band-crit { fill: var(--color-bad-soft); }
+#chart .cross { stroke: var(--color-muted); }
+.tip { position: absolute; top: var(--space-xs); display: none; pointer-events: none; padding: var(--space-2xs) var(--space-xs); border: var(--rule-hair) solid var(--color-rule-2);
+  border-radius: 4px; background: var(--color-paper-3); font-family: var(--font-outlier); font-size: var(--text-xs); white-space: nowrap; z-index: var(--z-tooltip); }
+
+/* ---------------------------------------------------------------- diagnosis */
+#diagTitle { font-size: var(--text-lg); font-weight: 500; color: var(--color-ink); }
+#diagText { margin-top: var(--space-2xs); color: var(--color-ink-2); }
+.sub-label { margin: var(--space-lg) 0 var(--space-xs); color: var(--color-muted); font-size: var(--text-xs); font-weight: 500; }
+#devs { list-style: none; margin: 0; padding: 0; }
+#devs li { display: grid; grid-template-columns: minmax(0, 1fr) 72px 64px; gap: var(--space-sm); align-items: center; min-height: 32px; }
+#devs li + li { border-top: var(--rule-hair) solid var(--color-rule); }
+#devs .bar { height: 4px; background: var(--color-rule); position: relative; }
+#devs .bar i { position: absolute; inset: 0 auto 0 0; background: var(--color-accent); }
+#devs .z { text-align: right; font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-ink-2); }
+
+/* ---------------------------------------------------------------- events as a trail */
+.trail { list-style: none; margin: 0; padding: 0 var(--space-lg) var(--space-md); max-height: 420px; overflow-y: auto; }
+#eventBody li { display: grid; grid-template-columns: 76px 72px minmax(0, 1fr); gap: var(--space-sm); align-items: baseline; padding: var(--space-xs) 0 var(--space-xs) var(--space-md);
+  border-left: var(--rule-hair) solid var(--color-rule-2); }
+#eventBody .t { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-cool); }
+#eventBody .m { color: var(--color-ink); overflow-wrap: anywhere; }
+#eventBody .empty { display: block; border: 0; padding-left: 0; color: var(--color-muted); }
+
+/* ---------------------------------------------------------------- simulator */
+.opts { display: grid; border: var(--rule-hair) solid var(--color-rule); border-radius: var(--radius-pill); overflow: hidden; }
+.opts button { display: grid; gap: 0; text-align: left; padding: var(--space-2xs) var(--space-sm); line-height: 1.35; border: 0; background: var(--color-paper-2); color: var(--color-ink-2); cursor: pointer;
+  transition: background-color var(--dur-micro) var(--ease-out); }
+.opts button + button { border-top: var(--rule-hair) solid var(--color-rule); }
+.opts button:hover:not(:disabled) { background: var(--color-paper-3); }
+.opts button:active:not(:disabled) { background: var(--color-rule); }
+.opts button[aria-pressed="true"] { color: var(--color-ink); box-shadow: inset 3px 0 0 var(--color-accent); }
+.opts button:disabled { opacity: 0.55; cursor: not-allowed; }
+.opts .l { font-weight: 500; } .opts .s { font-size: var(--text-xs); color: var(--color-muted); }
+.field { display: flex; justify-content: space-between; align-items: baseline; margin: var(--space-lg) 0 var(--space-xs); color: var(--color-ink-2); font-weight: 500; }
+.field .num { font-weight: 400; color: var(--color-ink); }
+input[type=range] { width: 100%; accent-color: var(--color-accent); margin: 0; min-height: 32px; }
+input[type=range]:disabled { opacity: 0.55; cursor: not-allowed; }
+.row2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-xs); margin-top: var(--space-lg); }
+select.src, #connAddr { width: 100%; min-height: 36px; padding: 0 var(--space-sm); border: var(--rule-hair) solid var(--color-muted); border-radius: var(--radius-pill);
+  background: var(--color-paper-3); color: var(--color-ink); }
+select.src:hover:not(:disabled), #connAddr:hover { border-color: var(--color-ink-2); }
+select.src:focus-visible, #connAddr:focus-visible { outline: 2px solid var(--color-focus); outline-offset: -1px; }
+select.src + select.src { margin-top: var(--space-xs); }
+.note { margin-top: var(--space-xs); min-height: 1lh; color: var(--color-muted); overflow-wrap: anywhere; }
+.note.err { color: var(--color-bad); }
+
+/* ---------------------------------------------------------------- method and sensors */
+details.panel > summary { list-style: none; cursor: pointer; display: flex; align-items: baseline; gap: var(--space-sm); padding: var(--space-md) var(--space-lg); border-radius: var(--radius-card); }
+details.panel > summary::-webkit-details-marker { display: none; }
+details.panel > summary h2 { font-size: var(--text-section); max-width: none; }
+details.panel > summary .meta { color: var(--color-muted); }
+details.panel > summary .open { margin-left: auto; color: var(--color-ink-2); text-decoration: underline; text-decoration-color: var(--color-rule-2); }
+details.panel > summary:hover .open { color: var(--color-accent); }
+details.panel[open] > summary { border-bottom: var(--rule-hair) solid var(--color-rule); border-radius: var(--radius-card) var(--radius-card) 0 0; }
+details.panel[open] > summary .open::before { content: "Hide"; } details.panel:not([open]) > summary .open::before { content: "Show"; }
+.dgrid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--rule-hair); background: var(--color-rule); border-radius: 0 0 var(--radius-card) var(--radius-card); overflow: hidden; }
+.dgrid > div { background: var(--color-paper-2); padding: var(--space-md) var(--space-lg) var(--space-lg); min-width: 0; }
+.dgrid h3 { font-size: var(--text-title); margin: var(--space-lg) 0 var(--space-xs); }
+.dgrid h3:first-child { margin-top: 0; }
+.dgrid p { color: var(--color-ink-2); margin-bottom: var(--space-sm); }
+pre.formula { margin: 0 0 var(--space-sm); padding: var(--space-sm); background: var(--color-paper-3); border-radius: var(--radius-pill); font: var(--text-xs)/1.7 var(--font-outlier); color: var(--color-ink); white-space: pre-wrap; }
+.counts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--rule-hair); background: var(--color-rule); border: var(--rule-hair) solid var(--color-rule); border-radius: var(--radius-pill); overflow: hidden; margin-bottom: var(--space-sm); }
+.counts div { background: var(--color-paper-2); padding: var(--space-xs) var(--space-sm); }
+.counts small { display: block; color: var(--color-muted); font-size: var(--text-xs); }
+.counts span { font-family: var(--font-outlier); }
+.switch { display: flex; align-items: center; gap: var(--space-xs); min-height: 32px; cursor: pointer; }
+.switch input { accent-color: var(--color-accent); width: 16px; height: 16px; }
 table { width: 100%; border-collapse: collapse; }
-th { text-align: left; font-weight: 500; color: var(--muted); font-size: 12px; padding: 0 20px 8px; border-bottom: 1px solid var(--rule); }
-td { padding: 0 20px; height: 42px; border-bottom: 1px solid var(--rule); vertical-align: middle; }
+th { text-align: left; font-weight: 500; font-size: var(--text-xs); color: var(--color-muted); padding: 0 var(--space-xs) var(--space-xs) 0; border-bottom: var(--rule-hair) solid var(--color-rule); white-space: nowrap; }
+td { padding: var(--space-xs) var(--space-xs) var(--space-xs) 0; border-bottom: var(--rule-hair) solid var(--color-rule); }
 tbody tr:last-child td { border-bottom: 0; }
 td.r, th.r { text-align: right; }
-.tscroll { max-height: 380px; overflow-y: auto; }
-td.t { color: var(--muted); width: 96px; white-space: nowrap; }
-td.sv { width: 96px; }
+td.v, td.z { font-family: var(--font-outlier); font-size: var(--text-xs); font-variant-numeric: tabular-nums; }
 
-/* ------------------------------------------------------------ details */
-details.card > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 12px; padding: 16px 20px; }
-details.card > summary::-webkit-details-marker { display: none; }
-details.card > summary h2 { margin: 0; font-size: 16px; font-weight: 600; }
-details.card > summary::after { content: "Show"; margin-left: auto; color: var(--accent); font-size: 12px; }
-details.card[open] > summary::after { content: "Hide"; }
-.dgrid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; padding: 0 0 16px; }
-.dgrid > div { min-width: 0; }
-.dgrid h3 { margin: 4px 20px 8px; font-size: 13px; font-weight: 600; }
-.dgrid p { margin: 0 20px 12px; color: var(--text-2); }
-pre.formula { margin: 0 20px 12px; padding: 12px; background: var(--raised); border-radius: 6px; font: 12px/1.6 ui-monospace, Consolas, monospace; color: var(--text); white-space: pre-wrap; }
-.counts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 0 20px 12px; }
-.counts div small { display: block; color: var(--muted); font-size: 12px; }
-.counts div span { font-size: 16px; font-weight: 600; }
-.switch { display: flex; gap: 8px; align-items: center; margin: 0 20px; cursor: pointer; }
-.switch input { accent-color: var(--accent); }
+/* ---------------------------------------------------------------- dialog, toast, stale */
+dialog#conn { border: var(--rule-hair) solid var(--color-rule-2); border-radius: var(--radius-card); padding: 0; background: var(--color-paper-2); color: var(--color-ink); width: min(30rem, 92%); }
+dialog#conn::backdrop { background: var(--color-scrim); }
+#connForm { padding: var(--space-lg); display: grid; gap: var(--space-xs); }
+#connForm h2 { font-size: var(--text-section); }
+#connForm p { color: var(--color-ink-2); margin-bottom: var(--space-xs); }
+#connForm label { color: var(--color-muted); font-size: var(--text-xs); font-weight: 500; }
+#connForm .row { display: flex; gap: var(--space-xs); flex-wrap: wrap; margin-top: var(--space-xs); }
+#connState { color: var(--color-muted); overflow-wrap: anywhere; min-height: 1lh; }
+#connState.err { color: var(--color-bad); }
+.share { margin-top: var(--space-sm); padding-top: var(--space-sm); border-top: var(--rule-hair) solid var(--color-rule); display: grid; gap: var(--space-xs); }
+#shareLink { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-ink-2); overflow-wrap: anywhere; }
+.toast { position: fixed; right: var(--space-lg); bottom: var(--space-lg); z-index: var(--z-toast); max-width: min(26rem, 90%); padding: var(--space-sm) var(--space-md);
+  border: var(--rule-hair) solid var(--color-rule-2); border-left-width: 3px; border-radius: var(--radius-pill); background: var(--color-paper-3); color: var(--color-ink); }
+.toast.good { border-left-color: var(--color-ok); } .toast.crit { border-left-color: var(--color-bad); }
+/* ---------------------------------------------------------------- the alarm: impossible to miss, and it stays until the condition clears */
+.alarm { position: sticky; top: var(--bar-h); z-index: var(--z-sticky); display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-xs) var(--space-md); padding: var(--space-sm) var(--space-lg); color: var(--color-paper-3); }
+.alarm[hidden] { display: none; }
+.alarm.crit { background: var(--color-bad); }
+.alarm.warn { background: var(--color-accent); color: var(--color-accent-ink); }
+.alarm-word { font-size: var(--text-xl); font-weight: 500; letter-spacing: 0.02em; }
+.alarm-text { flex: 1 1 18rem; min-width: 0; display: grid; }
+.alarm-text b { font-size: var(--text-md); font-weight: 500; }
+.alarm .btn { background: transparent; border-color: currentColor; color: inherit; }
+.alarm .btn:hover:not(:disabled) { background: transparent; border-color: currentColor; }
+body::after { content: ""; position: fixed; inset: 0; z-index: var(--z-toast); pointer-events: none; opacity: 0; }
+body.alarm-crit::after { box-shadow: inset 0 0 0 8px var(--color-bad); opacity: 1; animation: alarm-pulse 1s var(--ease-in-out) infinite; }
+body.alarm-warn::after { box-shadow: inset 0 0 0 6px var(--color-accent); opacity: 1; animation: alarm-pulse 2s var(--ease-in-out) infinite; }
+@keyframes alarm-pulse { 50% { opacity: 0.25; } }
+@media (prefers-reduced-motion: reduce) { body.alarm-crit::after, body.alarm-warn::after { animation: none; } }
+body.is-stale .kpi .v, body.is-stale #chart .series, body.is-stale .strip { opacity: 0.4; }
+.skeleton { color: var(--color-muted); }
+.kpi.health .v span.skeleton { font-size: var(--text-xl); letter-spacing: 0; }
+.chart-empty { display: grid; place-items: center; height: 260px; color: var(--color-muted); }
 
-/* ------------------------------------------------------------ toast + stale */
-dialog#conn { border: 0; padding: 0; border-radius: 6px; background: var(--surface); color: var(--text); box-shadow: var(--shadow);
-  width: min(460px, calc(100vw - 32px)); }
-dialog#conn::backdrop { background: rgba(0,0,0,.55); }
-#conn form { padding: 20px; }
-#conn h2 { margin: 0 0 4px; font-size: 16px; font-weight: 600; }
-#conn p { margin: 0 0 14px; color: var(--text-2); }
-#conn label { display: block; color: var(--muted); font-size: 12px; margin-bottom: 6px; }
-#conn input[type=text] { width: 100%; height: 36px; border-radius: 6px; border: 1px solid var(--border); background: var(--ground); padding: 0 12px; }
-#conn .row { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
-#conn .state { margin-top: 12px; font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
-#conn .state.err { color: var(--negative); }
-#conn .share { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--rule); }
-#conn code { font-size: 12px; overflow-wrap: anywhere; color: var(--text-2); }
-/* Needs attention: every current problem, in words, with its fix. Shown only when there is one. */
-#issues { margin-bottom: 24px; }
-#issues[hidden] { display: none; }
-#issueList { list-style: none; margin: 10px 0 0; padding: 0 0 6px; }
-#issueList li { position: relative; padding: 10px 20px 10px 22px; }
-#issueList li + li { border-top: 1px solid var(--rule); }
-#issueList li::before { content: ""; position: absolute; left: 0; top: 10px; bottom: 10px; width: 2px; background: var(--warning); }
-#issueList li.crit::before { background: var(--negative); }
-#issueList .it { font-weight: 600; }
-#issueList .it .pill { margin-right: 8px; vertical-align: 1px; }
-#issueList .fx { color: var(--text-2); margin-top: 3px; }
-#issueList .fx b { color: var(--text); font-weight: 600; }
-.toast { position: fixed; right: 24px; bottom: 24px; z-index: 50; max-width: min(420px, calc(100vw - 32px)); padding: 10px 14px;
-  background: var(--raised); border-radius: 6px; box-shadow: var(--shadow); font-size: 13px; }
-.toast[hidden] { display: none; }
-.toast::before { content: "● "; } .toast.good::before { color: var(--positive); } .toast.crit::before { color: var(--negative); }
-body.is-stale .kpi .v, body.is-stale #chart .series, body.is-stale .strip { opacity: .4; }
-
-/* ------------------------------------------------------------ responsive */
-@media (max-width: 1180px) {
-  .kpis { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  .kpi.health { grid-column: span 4; border-bottom: 1px solid var(--rule); }
-  .kpi:nth-child(2), .kpi:nth-child(6) { border-left: 0; }
-  .kpi:nth-child(n+6) { border-top: 1px solid var(--rule); }
+/* ---------------------------------------------------------------- responsive */
+@media (max-width: 75rem) {
+  #kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  #kpis > .kpi.health { grid-row: auto; grid-column: 1 / -1; }
 }
-@media (max-width: 960px) { .grid { grid-template-columns: minmax(0, 1fr); } }
-@media (max-width: 640px) {
-  .rail { inset: auto 0 0 0; width: auto; height: 56px; flex-direction: row; justify-content: space-around; padding: 0 8px;
-    border-right: 0; border-top: 1px solid var(--border); }
-  .rail .brand, .rail .hr { display: none; }
-  .rail a, .rail button { width: 48px; height: 56px; }
-  .rail a[aria-current="true"]::after { right: 14px; left: 14px; top: -1px; bottom: auto; width: auto; height: 1px; }
-  .rail .bottom { margin-top: 0; }
-  .rail [data-tip]:hover::before { display: none; }
-  .page { margin-left: 0; padding: 20px 16px 80px; }
-  .title-row .right { margin-left: 0; }
-  .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .kpi.health { grid-column: span 2; }
-  .kpi { border-left: 0 !important; border-top: 1px solid var(--rule); }
-  .kpi.health { border-top: 0; }
-  .kpi:nth-child(odd):not(.health) { border-left: 1px solid var(--rule) !important; }
-  .strip { gap: 0; height: 22px; }
+@media (max-width: 60rem) {
+  .pair, .dgrid { grid-template-columns: minmax(0, 1fr); }
+  .sections { display: none; }
+  #srcLine { display: none; }
+}
+@media (max-width: 40rem) {
+  .bar-in, main { padding-inline: var(--space-md); }
+  .bar-in { gap: var(--space-sm); }
+  .wordmark span { display: none; }
+  #kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .kpi.health .v span { font-size: 3.5rem; }
+  .strip { gap: 0; height: 32px; }
   #chart { height: 220px; }
-  .dgrid { grid-template-columns: minmax(0, 1fr); }
-  th, td { padding-left: 12px; padding-right: 12px; }
+  .panel-head, .panel-body, .trail { padding-inline: var(--space-md); }
+  #eventBody li { grid-template-columns: 64px minmax(0, 1fr); }
+  #eventBody li .lv { display: none; }
+  .tabs { margin-left: 0; width: 100%; }
+  body { font-size: var(--text-md); }
   .hide-sm { display: none; }
 }
-@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 </style>
 </head>
 <body>
 
-<nav class="rail" aria-label="Sections">
-  <svg class="brand" viewBox="0 0 28 28" aria-label="Pump Health Console"><circle cx="14" cy="14" r="12"/>
-    <path d="M14 14 C11.5 9 12 5.5 14 3.5 C15.3 6.8 15.9 10 14 14Z"/><path d="M14 14 C19.7 13.4 22.6 14.8 23.7 17.3 C20.4 18.2 17.2 17.5 14 14Z"/>
-    <path d="M14 14 C10.8 18.6 8 20.1 5.3 19.4 C6.3 16.3 9.3 14.5 14 14Z"/></svg>
-  <a href="#overview" data-tip="Overview" aria-label="Overview" aria-current="true"><svg class="i" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg></a>
-  <a href="#trendCard" data-tip="Trend" aria-label="Trend"><svg class="i" viewBox="0 0 24 24"><path d="M3 17l5-6 4 4 8-9"/></svg></a>
-  <a href="#eventsCard" data-tip="Events" aria-label="Events"><svg class="i" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg></a>
-  <span class="hr"></span>
-  <a href="#controlsCard" data-tip="Simulator" aria-label="Simulator"><svg class="i" viewBox="0 0 24 24"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg></a>
-  <a href="#detailsCard" data-tip="Method and sensors" aria-label="Method and sensors"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/></svg></a>
-  <button class="bottom" id="connBtn" type="button" data-tip="Connection" aria-label="Connection"><svg class="i" viewBox="0 0 24 24"><path d="M9 7V3M15 7V3M7 7h10v5a5 5 0 0 1-10 0zM12 17v4"/></svg></button>
-  <button id="themeBtn" type="button" data-tip="Theme" aria-label="Change theme"><svg class="i" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18z" fill="currentColor"/><circle cx="12" cy="12" r="9"/></svg></button>
-</nav>
+<header class="bar">
+  <div class="bar-in">
+    <a class="wordmark" href="#overview" aria-label="Pump Health Console, back to the top">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10.5"/>
+        <path d="M12 12 C9.8 8 10.2 5 12 3.3 C13.2 6.1 13.7 8.9 12 12Z"/><path d="M12 12 C16.9 11.5 19.4 12.7 20.3 14.9 C17.5 15.6 14.7 15 12 12Z"/>
+        <path d="M12 12 C9.2 15.9 6.8 17.2 4.5 16.6 C5.4 14 8 12.4 12 12Z"/></svg>
+      <span>Pump Health Console</span>
+    </a>
+    <nav class="sections" aria-label="Sections">
+      <a href="#overview" aria-current="true">Overview</a>
+      <a href="#trendCard">Trend</a>
+      <a href="#eventsCard">Events</a>
+      <a href="#controlsCard">Simulator</a>
+      <a href="#detailsCard">Method</a>
+    </nav>
+    <div class="bar-end">
+      <span id="srcLine">Connecting</span>
+      <button class="btn btn--icon" id="connBtn" type="button" aria-label="Rig connection" title="Rig connection"><svg viewBox="0 0 24 24"><path d="M9 7V3M15 7V3M7 7h10v5a5 5 0 0 1-10 0zM12 17v4"/></svg></button>
+      <button class="btn btn--icon" id="themeBtn" type="button" aria-label="Change theme" title="Theme"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18z" fill="currentColor"/></svg></button>
+      <button class="btn btn--primary" id="recBtn" type="button">Start recording</button>
+    </div>
+  </div>
+</header>
 
 <dialog id="conn" aria-labelledby="connTitle">
   <form method="dialog" id="connForm">
     <h2 id="connTitle">Connect to a rig</h2>
     <p>Enter the address of the computer or Raspberry Pi running the backend.</p>
     <label for="connAddr">Rig address</label>
-    <input type="text" id="connAddr" placeholder="192.168.1.20:8000  or  my-rig.trycloudflare.com" autocomplete="off" spellcheck="false">
+    <input type="text" id="connAddr" placeholder="192.168.1.20:8000 or my-rig.trycloudflare.com" autocomplete="off" spellcheck="false" inputmode="url">
     <div class="row">
-      <button class="btn invert" type="submit" value="connect">Connect</button>
+      <button class="btn btn--primary" type="submit" value="connect">Connect</button>
       <button class="btn" type="button" id="connCancel">Close</button>
     </div>
-    <div class="state" id="connState"></div>
+    <div id="connState" role="status"></div>
     <div class="share">
-      <label>Link to send to someone (opens this dashboard on this rig)</label>
-      <code id="shareLink">—</code>
+      <label>Link to send to someone, opens this dashboard on this rig</label>
+      <span id="shareLink">Not connected yet</span>
       <div class="row"><button class="btn" type="button" id="copyLink">Copy link</button></div>
     </div>
   </form>
 </dialog>
 
+<div class="alarm" id="alarm" role="alert" hidden>
+  <span class="alarm-word" id="alarmWord"></span>
+  <div class="alarm-text"><b id="alarmTitle"></b><span id="alarmFix"></span></div>
+  <button class="btn" id="alarmMute" type="button">Silence</button>
+</div>
 <div class="toast" id="toast" role="alert" hidden><span class="m"></span></div>
 
-<div class="page">
-  <header class="title-row" id="overview">
-    <div>
-      <h1>P-101 test rig <span class="pill" id="statusPill">Connecting</span></h1>
-      <p class="finding" id="finding">Waiting for the first readings.</p>
-    </div>
-    <div class="right">
-      <span class="src-line" id="srcLine">Offline</span>
-      <button class="btn invert" id="recBtn" type="button">Start recording</button>
-    </div>
-  </header>
+<main>
+  <section id="overview" aria-label="Overview">
+    <div class="head"><h1>P-101 test rig</h1><span class="chip" id="statusPill">Connecting</span></div>
+    <p id="finding">Waiting for the first readings from the rig.</p>
+  </section>
 
-  <section class="card" id="issues" aria-label="Needs attention" aria-live="polite" hidden>
-    <div class="card-head"><h2>Needs attention</h2><span class="meta" id="issuesMeta"></span></div>
+  <section class="panel" id="issues" aria-label="Needs attention" aria-live="polite" hidden>
+    <div class="panel-head"><h2>Needs attention</h2><span class="meta" id="issuesMeta"></span></div>
     <ul id="issueList"></ul>
   </section>
 
-  <section class="card" aria-label="Current readings" style="margin-bottom:24px">
-    <div class="kpis" id="kpis">
-      <div class="kpi health"><div class="k">Health index</div><div class="v"><span id="hVal">—</span><small>/ 100</small></div><div class="d" id="hSub">anomaly score —</div></div>
+  <section id="kpis" aria-label="Current readings">
+    <div class="kpi health">
+      <div><div class="k">Health index</div><div class="v"><span id="hVal" class="skeleton">n/a</span><small>/ 100</small></div></div>
+      <div><div class="meter idle" id="hMeter" aria-hidden="true"></div><div class="d" id="hSub" style="margin-top:var(--space-xs)">Anomaly score n/a</div></div>
     </div>
   </section>
 
-  <div class="grid">
-    <div class="col">
-      <section class="card" id="statusCard" aria-label="Status timeline">
-        <div class="card-head"><h2>Status, last 2 minutes</h2><span class="meta">one cell per second</span></div>
-        <div class="card-body">
-          <div class="strip" id="strip"></div>
-          <div class="strip-axis" id="stripAxis"><span>—</span><span>—</span><span>now</span></div>
-          <div class="strip-sum" id="stripSum"></div>
-        </div>
-      </section>
-
-      <section class="card" id="trendCard" aria-label="Trend">
-        <div class="card-head"><h2 id="trendTitle">Anomaly score</h2><div class="tabs" id="tabs" role="group" aria-label="Metric"></div></div>
-        <div class="chart-wrap" id="chartWrap"><svg id="chart" role="img" aria-label="Trend chart"></svg><div class="tip" id="tip"></div></div>
-      </section>
-
-      <section class="card" id="eventsCard" aria-label="Events">
-        <div class="card-head"><h2>Events</h2><span class="meta" id="evMeta"></span></div>
-        <div class="tscroll" style="margin-top:12px">
-          <table><thead><tr><th>Time</th><th>Level</th><th>Event</th></tr></thead><tbody id="eventBody"></tbody></table>
-        </div>
-      </section>
+  <section class="panel" id="statusCard" aria-label="Status, last 2 minutes">
+    <div class="panel-head"><h2>Status, last 2 minutes</h2><span class="meta">one cell per second, newest on the right</span></div>
+    <div class="panel-body">
+      <div class="strip" id="strip"></div>
+      <div class="strip-axis" id="stripAxis"><span>n/a</span><span>n/a</span><span>now</span></div>
+      <div class="strip-sum" id="stripSum"><span>No readings yet.</span></div>
     </div>
+  </section>
 
-    <div class="col">
-      <section class="card" id="diagCard" aria-label="Diagnosis">
-        <div class="card-head"><h2>Diagnosis</h2><span class="meta">rule-based match on the model's features</span></div>
-        <div class="card-body">
-          <div class="diag-title" id="diagTitle">—</div>
-          <div class="diag-text" id="diagText"></div>
-          <div class="section-label">Largest deviations from normal</div>
-          <ul class="devs" id="devs"></ul>
-        </div>
-      </section>
+  <div class="pair">
+    <section class="panel" id="trendCard" aria-label="Trend">
+      <div class="panel-head"><h2 id="trendTitle">Anomaly score</h2><div class="tabs" id="tabs" role="group" aria-label="Metric"></div></div>
+      <div class="chart-wrap" id="chartWrap"><svg id="chart" role="img" aria-label="Trend chart"></svg><div class="tip" id="tip"></div></div>
+    </section>
 
-      <section class="card" id="controlsCard" aria-label="Simulator">
-        <div class="card-head"><h2>Simulator</h2><span class="meta" id="ctlMeta"></span></div>
-        <div class="card-body">
-          <div class="opts" id="scenarios" role="group" aria-label="Simulated condition"></div>
-          <div class="field"><label for="valve">Outlet valve</label><span id="valveVal">0% closed</span></div>
-          <input id="valve" type="range" min="0" max="100" step="1" value="0">
-          <div class="row2">
-            <button class="btn" id="pumpBtn" type="button">Stop pump</button>
-            <button class="btn" id="pauseBtn" type="button">Pause stream</button>
-          </div>
-          <div class="field" style="margin-bottom:0"><label for="srcSel">Data source</label></div>
-          <select class="src" id="srcSel">
-            <option value="auto">Auto (ESP32 when connected)</option>
-            <option value="sim">Simulator</option>
-            <option value="serial">ESP32 over USB</option>
-            <option value="mqtt">ESP32 over Wi-Fi (MQTT)</option>
-            <option value="replay">Recorded data</option>
-          </select>
-          <select class="src" id="replaySel" aria-label="Recording" hidden></select>
-          <div class="note" id="srcNote"></div>
-        </div>
-      </section>
-    </div>
+    <section class="panel" id="diagCard" aria-label="Diagnosis">
+      <div class="panel-head"><h2>Diagnosis</h2><span class="meta">rule-based match on the model’s features</span></div>
+      <div class="panel-body">
+        <div id="diagTitle">No reading yet</div>
+        <div id="diagText">The diagnosis appears once the first five seconds are in.</div>
+        <div class="sub-label">Largest deviations from normal</div>
+        <ul id="devs"></ul>
+      </div>
+    </section>
   </div>
 
-  <details class="card" id="detailsCard" style="margin-top:24px">
-    <summary><h2>Method and sensors</h2><span class="muted">how the score is computed, the 12 features and the 7 sensors</span></summary>
+  <div class="pair">
+    <section class="panel" id="eventsCard" aria-label="Events">
+      <div class="panel-head"><h2>Events</h2><span class="meta" id="evMeta"></span></div>
+      <ol class="trail" id="eventBody" style="margin-top:var(--space-sm)"></ol>
+    </section>
+
+    <section class="panel" id="controlsCard" aria-label="Simulator">
+      <div class="panel-head"><h2>Simulator</h2><span class="meta" id="ctlMeta"></span></div>
+      <div class="panel-body">
+        <div class="opts" id="scenarios" role="group" aria-label="Simulated condition"></div>
+        <div class="field"><label for="valve">Outlet valve</label><span class="num" id="valveVal">0% closed</span></div>
+        <input id="valve" type="range" min="0" max="100" step="1" value="0">
+        <div class="row2">
+          <button class="btn" id="pumpBtn" type="button">Stop pump</button>
+          <button class="btn" id="pauseBtn" type="button">Pause stream</button>
+          <button class="btn" id="relearnBtn" type="button" title="Use after a repair, or if the pump was not healthy when the learning ran">Learn normal again</button>
+        </div>
+        <div class="field"><label for="srcSel">Data source</label></div>
+        <select class="src" id="srcSel">
+          <option value="auto">Auto, the ESP32 when connected</option>
+          <option value="sim">Simulator</option>
+          <option value="serial">ESP32 over USB</option>
+          <option value="mqtt">ESP32 over Wi-Fi (MQTT)</option>
+          <option value="replay">Recorded data</option>
+        </select>
+        <select class="src" id="replaySel" aria-label="Recording" hidden></select>
+        <div class="note" id="srcNote"></div>
+      </div>
+    </section>
+  </div>
+
+  <details class="panel" id="detailsCard">
+    <summary><h2>Method and sensors</h2><span class="meta hide-sm">how the score is computed, the 12 features and the 7 sensors</span><span class="open"></span></summary>
     <div class="dgrid">
       <div>
         <h3>Method</h3>
         <p>The ESP32 samples seven sensors once a second and streams them to the Raspberry Pi 5. The Pi keeps the last
-          <span id="winN">5</span> samples, extracts 12 features and scores their distance from normal running.</p>
+          <span id="winN" class="num">5</span> samples, extracts 12 features and scores their distance from normal running.</p>
         <pre class="formula" id="formula"></pre>
         <p id="scorerName"></p>
         <h3>Data link</h3>
         <div class="counts" id="counts"></div>
         <label class="switch"><input type="checkbox" id="logChk">Record readings to CSV on the Pi</label>
-        <p class="muted" id="logPath" style="margin-top:6px;overflow-wrap:anywhere"></p>
+        <p class="muted" id="logPath" style="margin-top:var(--space-xs);overflow-wrap:anywhere"></p>
       </div>
       <div>
         <h3>Feature vector <span class="muted" id="winFill" style="font-weight:400"></span></h3>
         <table><thead><tr><th>Feature</th><th class="r">Value</th><th class="r">Normal</th><th class="r">Deviation</th></tr></thead><tbody id="featBody"></tbody></table>
-        <h3 style="margin-top:16px">Sensors</h3>
+        <h3>Sensors</h3>
         <table><thead><tr><th>Sensor</th><th class="hide-sm">Device</th><th class="r">Reading</th><th>State</th></tr></thead><tbody id="sensorBody"></tbody></table>
       </div>
     </div>
   </details>
-</div>
+</main>
 
 <script>
 "use strict";
-/* Pump Health Console — browser dashboard. Renders what the Raspberry Pi sends over the
-   WebSocket; the browser does no ML.  transport (WebSocket) -> store -> render */
-const UI = {
-  wsUrl: null,   // decided by rigAddress() below
-  trendLen: 120, maxEvents: 60, reconnectMs: [500, 1000, 2000, 4000, 5000],
-};
-const fmt = (v, dp) => (v === null || v === undefined || Number.isNaN(v)) ? "—" : v.toFixed(dp);
+/* Pump Health Console. Renders what the Raspberry Pi sends over the WebSocket; the browser does no ML.
+   transport (WebSocket) -> store -> render */
+const UI = { wsUrl: null, trendLen: 120, maxEvents: 60, reconnectMs: [500, 1000, 2000, 4000, 5000] };
+const NA = "n/a";
+const fmt = (v, dp) => (v === null || v === undefined || Number.isNaN(v)) ? NA : v.toFixed(dp);
 const signed = (v, dp, unit = "") => {
-  if (v === null || v === undefined) return "—";
+  if (v === null || v === undefined) return NA;
   const a = Math.abs(v).toFixed(dp);
   return `${Number(a) === 0 ? "" : v > 0 ? "+" : "−"}${a}${unit}`;
 };
@@ -441,26 +441,26 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const clock = (t) => new Date(t * 1000).toLocaleTimeString([], { hour12: false });
 
 const STATUS = { "HEALTHY": ["good", "Healthy"], "WARNING": ["warn", "Warning"], "CRITICAL": ["crit", "Critical"],
-  "DRY-RUN PROTECTION": ["crit", "Dry-run protection"], "STANDBY": ["", "Standby"], "STARTING": ["", "Starting"] };
-const CELL = { "HEALTHY": "ok", "WARNING": "warn", "CRITICAL": "crit", "DRY-RUN PROTECTION": "crit", "STANDBY": "idle", "STARTING": "ok" };
+  "DRY-RUN PROTECTION": ["crit", "Low water"], "STANDBY": ["", "Standby"], "STARTING": ["", "Starting"], "LEARNING": ["", "Learning"] };
+const CELL = { "HEALTHY": "ok", "WARNING": "warn", "CRITICAL": "crit", "DRY-RUN PROTECTION": "crit", "STANDBY": "idle", "STARTING": "ok", "LEARNING": "idle" };
 const SEV = { info: ["", "Info"], warn: ["warn", "Warning"], crit: ["crit", "Critical"] };
 const SENSORS = [
-  { id: "rpm", label: "Speed", unit: "rpm", dp: 0, get: (f) => f.reading.rpm, ch: "hall", base: "rpm" },
-  { id: "flow", label: "Flow", unit: "L/min", dp: 1, get: (f) => f.reading.flow_lpm, ch: "flow", base: "flow_lpm" },
-  { id: "pressure", label: "Outlet pressure", unit: "bar", dp: 2, get: (f) => f.reading.pressure_bar, ch: "pressure", base: "pressure_bar" },
-  { id: "current", label: "Motor current", unit: "A", dp: 2, get: (f) => f.reading.current_a, ch: "current", base: "current_a" },
-  { id: "temp", label: "Motor temperature", unit: "°C", dp: 1, get: (f) => f.reading.temp_c, ch: "temp", base: "temp_c" },
-  { id: "vib", label: "Vibration RMS", unit: "g", dp: 3, get: (f) => f.reading.vib_rms, ch: "vib", base: "vib_rms" },
+  { id: "rpm", label: "Speed", unit: "rpm", dp: 0, get: (f) => f.reading.rpm, ch: "hall", base: "rpm", norm: "rpm_mean" },
+  { id: "flow", label: "Flow", unit: "L/min", dp: 1, get: (f) => f.reading.flow_lpm, ch: "flow", base: "flow_lpm", norm: "flow_mean" },
+  { id: "pressure", label: "Outlet pressure", unit: "bar", dp: 2, get: (f) => f.reading.pressure_bar, ch: "pressure", base: "pressure_bar", norm: "pressure_mean" },
+  { id: "current", label: "Motor current", unit: "A", dp: 2, get: (f) => f.reading.current_a, ch: "current", base: "current_a", norm: "current_rms" },
+  { id: "temp", label: "Motor temperature", unit: "°C", dp: 1, get: (f) => f.reading.temp_c, ch: "temp", base: "temp_c", norm: "temp_mean" },
+  { id: "vib", label: "Vibration RMS", unit: "g", dp: 3, get: (f) => f.reading.vib_rms, ch: "vib", base: "vib_rms", norm: "vib_rms" },
 ];
+/* The normal value for a sensor: this pump's learned one once known, else the configured one. */
+const normalOf = (s, f) => f?.normal?.[s.norm] ?? store.cfg.baseline[s.base];
 const METRICS = { score: { label: "Anomaly score", unit: "", dp: 2, get: (f) => f.score, fixed: [0, 1], thresholds: true },
   ...Object.fromEntries(SENSORS.map((s) => [s.id, s])) };
 const TAB = { score: "Anomaly", flow: "Flow", pressure: "Pressure", current: "Current", temp: "Temperature", vib: "Vibration", rpm: "Speed" };
 
-/* ====================================================================== store + transport */
 /* ====================================================================== which rig
-   The page can be served by the rig's own backend (then it talks to the same host), or from
-   anywhere else, e.g. Vercel. Then the rig address comes from ?pi=<host[:port]> in the link,
-   or from the Connection dialog, and is remembered in this browser. */
+   Served by the rig's backend: talk to the same host. Served elsewhere (Vercel): the rig comes from
+   ?pi=<host[:port]> or the Connect dialog and is remembered in this browser. */
 function toWsUrl(addr) {
   let a = String(addr || "").trim().replace(/\/+$/, "");
   if (!a) return null;
@@ -479,6 +479,7 @@ function rigAddress() {
 }
 UI.wsUrl = rigAddress();
 
+/* ====================================================================== store + transport */
 const store = { cfg: null, frames: [], events: [], state: null, ws: null, wsOpen: false, lastFrameAt: 0, metric: "score",
   get last() { return this.frames[this.frames.length - 1] || null; } };
 
@@ -487,10 +488,10 @@ const transport = (() => {
   function connect() {
     const my = ++gen;
     let ws;
-    try { ws = new WebSocket(UI.wsUrl); } catch (e) { store.lastError = String(e.message || e); schedule(my); return; }
+    try { ws = new WebSocket(UI.wsUrl); } catch (e) { schedule(my); return; }
     store.ws = ws;
-    ws.onopen = () => { if (my !== gen) return ws.close(); store.wsOpen = true; store.everConnected = true; store.lastError = ""; attempt = 0; connUi(); };
-    ws.onclose = () => { if (my !== gen) return; store.wsOpen = false; render.header(); connUi(); schedule(my); };
+    ws.onopen = () => { if (my !== gen) return ws.close(); store.wsOpen = true; store.connFailed = false; store.everConnected = true; attempt = 0; connUi(); };
+    ws.onclose = () => { if (my !== gen) return; store.wsOpen = false; store.connFailed = true; render.issues(); drawTrend(); render.header(); connUi(); schedule(my); };
     ws.onerror = () => ws.close();
     ws.onmessage = (ev) => { let m; try { m = JSON.parse(ev.data); } catch { return; } handlers[m.type]?.(m); };
   }
@@ -516,7 +517,6 @@ const handlers = {
   },
   state(s) {
     store.state = s;
-    // Keep ~30 s of counter snapshots so we can tell *new* rejects / losses from old ones.
     (store.counterLog ||= []).push({ t: performance.now(), c: { invalid: s.counters.invalid, dropped: s.counters.dropped } });
     while (store.counterLog.length > 35) store.counterLog.shift();
     render.state();
@@ -534,12 +534,17 @@ function toast(cls, msg) {
 }
 
 /* ====================================================================== build */
-function build() {
+/* The loading state has the shape of what is coming: every reading, the meter and the record exist before the first message. */
+function buildShell() {
   const k = $("kpis");
   k.querySelectorAll(".kpi:not(.health)").forEach((e) => e.remove());
   k.insertAdjacentHTML("beforeend", SENSORS.map((s) => `
-    <div class="kpi" id="k-${s.id}"><div class="k">${s.label}</div><div class="v"><span>—</span><small>${s.unit}</small></div><div class="d">—</div></div>`).join(""));
+    <div class="kpi" id="k-${s.id}"><div class="k">${s.label}</div><div class="v"><span class="skeleton">${NA}</span><small>${s.unit}</small></div><div class="d">${NA}</div></div>`).join(""));
+  $("hMeter").innerHTML = "<i></i>".repeat(40);
   $("strip").innerHTML = "<i></i>".repeat(UI.trendLen);
+}
+
+function build() {
   $("tabs").innerHTML = ["score", "flow", "pressure", "current", "temp", "vib", "rpm"].map((m) =>
     `<button type="button" data-m="${m}" aria-pressed="${m === store.metric}">${TAB[m]}</button>`).join("");
   $("scenarios").innerHTML = Object.entries(store.cfg.scenarios).map(([key, s]) =>
@@ -553,64 +558,71 @@ score  = 1 − exp(−(D / ${sc.d0})²)
 health = (1 − score) × 100
 
 healthy  score < ${st.warn}
-warning  ${st.warn} – ${st.crit}
+warning  ${st.warn} to ${st.crit}
 critical score > ${st.crit}`;
   $("featBody").innerHTML = store.cfg.features.map((f) =>
-    `<tr id="f-${f.key}"><td>${esc(f.label)} <span class="muted">${esc(f.unit)}</span></td><td class="r v">—</td><td class="r muted">${fmt(f.mean, f.dp)}</td><td class="r z">—</td></tr>`).join("");
+    `<tr id="f-${f.key}"><td>${esc(f.label)} <span class="muted">${esc(f.unit)}</span></td><td class="r v">${NA}</td><td class="r v muted">${fmt(f.mean, f.dp)}</td><td class="r z">${NA}</td></tr>`).join("");
   $("sensorBody").innerHTML = store.cfg.sensors.map((s) =>
-    `<tr id="s-${s.id}"><td>${esc(s.name)}</td><td class="hide-sm muted">${esc(s.part)}</td><td class="r v">—</td><td class="l">—</td></tr>`).join("");
+    `<tr id="s-${s.id}"><td>${esc(s.name)}</td><td class="hide-sm muted">${esc(s.part)}</td><td class="r v">${NA}</td><td class="l">${NA}</td></tr>`).join("");
 }
 
 /* ====================================================================== render */
 const render = {
   all() { this.frame(); this.state(); this.events(); },
-  frame() { this.header(); this.kpis(); this.strip(); drawTrend(); this.diag(); this.details(); this.issues(); },
-  state() { this.controls(); this.links(); this.header(); this.issues(); },
+  frame() { this.header(); this.kpis(); this.strip(); drawTrend(); this.diag(); this.details(); this.issues(); this.alarm(); },
+  state() { this.controls(); this.links(); this.header(); this.issues(); this.alarm(); },
 
-  issues() {
-    const list = findIssues(), box = $("issues");
-    box.hidden = !list.length;
-    if (!list.length) return;
-    const crit = list.filter((i) => i.sev === "crit").length;
-    $("issuesMeta").textContent = `${list.length} ${list.length === 1 ? "issue" : "issues"}${crit ? `, ${crit} critical` : ""}`;
-    const html = list.map((i) => `<li class="${i.sev}"><div class="it"><span class="pill ${i.sev}">${i.sev === "crit" ? "Error" : "Warning"}</span>${esc(i.title)}</div><div class="fx"><b>Fix:</b> ${esc(i.fix)}</div></li>`).join("");
-    if ($("issueList").innerHTML !== html) $("issueList").innerHTML = html;
+  alarm() {
+    const a = findAlarm(), box = $("alarm");
+    box.hidden = !a;
+    document.body.classList.toggle("alarm-crit", a?.level === "crit");
+    document.body.classList.toggle("alarm-warn", a?.level === "warn");
+    document.title = a ? `${a.word}: ${a.title}` : pageTitle;
+    siren.set(a);
+    if (!a) return;
+    box.className = `alarm ${a.level}`;
+    $("alarmWord").textContent = a.word; $("alarmTitle").textContent = a.title; $("alarmFix").textContent = a.fix;
+    $("alarmMute").textContent = siren.muted ? "Silenced" : "Silence";
+    $("alarmMute").disabled = siren.muted;
   },
 
   header() {
     const s = store.state, f = store.last, link = linkState();
     const [cls, label] = f ? STATUS[f.status] : ["", store.wsOpen ? "Waiting" : "Offline"];
-    const p = $("statusPill"); p.className = `pill ${cls}`; p.textContent = label;
+    const p = $("statusPill"); p.className = `chip ${cls}`; p.textContent = label;
     $("srcLine").textContent = link.text;
     $("srcLine").title = s ? s.source_detail : "";
     document.body.classList.toggle("is-stale", link.bad && !!f);
     const rec = s?.logging?.enabled;
-    $("recBtn").textContent = rec ? `Stop recording · ${s.logging.rows} rows` : "Start recording";
-    $("recBtn").classList.toggle("invert", !rec);
-
+    $("recBtn").textContent = rec ? `Stop recording, ${s.logging.rows} rows` : "Start recording";
+    $("recBtn").classList.toggle("btn--primary", !rec);
     const fr = store.frames;
-    if (!f) { $("finding").textContent = "Waiting for the first readings."; return; }
+    if (!f) { $("finding").textContent = store.wsOpen ? "Waiting for the first readings from the rig." : "Not connected to a rig yet."; return; }
     let i = fr.length - 1;
     while (i > 0 && fr[i - 1].status === f.status) i--;
     const secs = Math.round(f.t - fr[i].t), dur = secs >= 60 ? `${Math.floor(secs / 60)} min ${secs % 60} s` : `${secs} s`;
-    let text = `${label} for ${i > 0 ? "" : "at least "}${dur}`;
-    if (f.diagnosis) text += `. Most likely ${f.diagnosis.label.toLowerCase()}: ${f.diagnosis.action.charAt(0).toLowerCase()}${f.diagnosis.action.slice(1)}`;
-    else if (f.status === "HEALTHY") text += ". All six channels are within tolerance of normal running.";
-    else if (f.status === "STANDBY") text += ". The pump is stopped.";
-    else text += ".";
+    let text = `${label} for ${i > 0 ? "" : "at least "}${dur}.`;
+    if (f.status === "LEARNING") text = `Learning this pump's normal running: ${f.learning_left} s left. Keep it running normally. Only the low-water check is active until this finishes.`;
+    else if (f.diagnosis) text += ` Most likely ${f.diagnosis.label.toLowerCase()}.`;
+    else if (f.status === "HEALTHY") text += " All six channels are within tolerance of normal running.";
+    else if (f.status === "STANDBY") text += " The pump is stopped.";
     $("finding").textContent = text;
   },
 
   kpis() {
-    const f = store.last, base = store.cfg.baseline;
-    $("hVal").textContent = f?.health ?? "—";
-    $("hSub").textContent = `anomaly score ${fmt(f?.score, 3)}`;
+    const f = store.last;
+    const h = f?.health ?? null, hv = $("hVal");
+    hv.textContent = h === null ? NA : String(h); hv.classList.toggle("skeleton", h === null);
+    $("hSub").textContent = `Anomaly score ${fmt(f?.score, 3)}`;
+    const cls = f ? (STATUS[f.status][0] || "idle") : "idle", lit = Math.round(((h ?? 0) / 100) * 40), meter = $("hMeter");
+    meter.className = `meter ${cls}`;
+    [...meter.children].forEach((n, i) => n.classList.toggle("on", i < lit));
     for (const s of SENSORS) {
-      const el = $(`k-${s.id}`), v = f ? s.get(f) : null, st = f ? f.channels[s.ch] : "idle", b = base[s.base];
-      el.querySelector(".v span").textContent = fmt(v, s.dp);
-      const d = el.querySelector(".d"), dev = v === null ? null : ((v - b) / b) * 100;
-      d.textContent = dev === null ? "—" : `${signed(dev, 1, "%")} vs ${fmt(b, s.dp)}`;
-      d.className = `d${st === "warn" || st === "crit" ? ` flag ${st}` : ""}`;
+      const el = $(`k-${s.id}`), v = f ? s.get(f) : null, st = f ? f.channels[s.ch] : "idle", b = normalOf(s, f);
+      const vs = el.querySelector(".v span"); vs.textContent = fmt(v, s.dp); vs.classList.toggle("skeleton", v === null);
+      const d = el.querySelector(".d"), dev = v === null || !b ? null : ((v - b) / b) * 100;
+      d.textContent = f?.status === "LEARNING" ? "learning normal" : dev === null ? NA : `${signed(dev, 1, "%")} vs ${fmt(b, s.dp)}${st === "crit" ? ", alarm" : st === "warn" ? ", check" : ""}`;
+      d.className = `d${st === "warn" || st === "crit" ? ` ${st}` : ""}`;
     }
   },
 
@@ -619,23 +631,24 @@ const render = {
     for (let i = 0; i < UI.trendLen; i++) {
       const f = i >= off ? fr[i - off] : null;
       cells[i].className = f ? CELL[f.status] : "";
-      cells[i].title = f ? `${clock(f.t)} · ${STATUS[f.status][1]}` : "";
+      cells[i].title = f ? `${clock(f.t)}, ${STATUS[f.status][1]}` : "";
     }
     const ax = $("stripAxis").children, now = store.last?.t;
     if (now) { ax[0].textContent = clock(now - 119); ax[1].textContent = clock(now - 60); }
+    if (!fr.length) return;
     const count = (k) => fr.filter((f) => CELL[f.status] === k).length;
-    const ok = count("ok"), warn = count("warn"), crit = count("crit");
     const kinds = new Set(fr.map((f) => f.diagnosis?.label).filter(Boolean));
-    $("stripSum").innerHTML = `<span>Normal <b>${ok} s</b></span><span>Warning <b>${warn} s</b></span><span>Critical <b>${crit} s</b></span>` +
+    $("stripSum").innerHTML = `<span>Normal <b>${count("ok")} s</b></span><span>Warning <b>${count("warn")} s</b></span><span>Critical <b>${count("crit")} s</b></span>` +
       `<span>Faults seen <b>${kinds.size ? esc([...kinds].join(", ")) : "none"}</b></span>`;
   },
 
   diag() {
     const f = store.last, d = f?.diagnosis;
-    let title = "—", text = "";
-    if (d) { title = `${d.label}`; text = `${Math.round(d.confidence * 100)}% match. ${d.action}`; }
+    let title = "No reading yet", text = "The diagnosis appears once the first five seconds are in.";
+    if (d) { title = d.label; text = `${Math.round(d.confidence * 100)}% match. ${d.action}`; }
     else if (f?.status === "HEALTHY") { title = "No fault"; text = "The feature vector is within tolerance of normal running."; }
     else if (f?.status === "STANDBY") { title = "Pump stopped"; text = "Nothing to diagnose while the pump is off."; }
+    else if (f?.status === "LEARNING") { title = "Learning normal"; text = `${f.learning_left} s left. Fault detection starts after this.`; }
     else if (f) { title = "Collecting data"; text = `Scoring starts in ${fmt(f.inhibit_left_s, 0)} s.`; }
     $("diagTitle").textContent = title; $("diagText").textContent = text;
     if (!f?.z) { $("devs").innerHTML = `<li><span class="muted">No score yet</span></li>`; return; }
@@ -653,9 +666,10 @@ const render = {
     const pb = $("pumpBtn"), running = isSim && s.sim.pump_cmd && !s.sim.tripped;
     pb.disabled = !isSim; pb.textContent = s.sim?.tripped ? "Reset and start" : running || !isSim ? "Stop pump" : "Start pump";
     $("pauseBtn").textContent = s.paused ? "Resume stream" : "Pause stream";
+    $("relearnBtn").hidden = s.scorer.kind !== "forest";
     $("srcSel").value = s.mode;
     const n = $("srcNote");
-    n.textContent = s.mode === "auto" && s.source === "sim" ? "No ESP32 detected on USB. Showing the simulator until one is connected." : (s.source_error || s.source_detail);
+    n.textContent = s.mode === "auto" && s.source === "sim" ? "No ESP32 found on USB, so the simulator runs until one is connected." : (s.source_error || s.source_detail);
     n.className = `note${s.source_error && s.source !== "sim" ? " err" : ""}`;
     const rs = $("replaySel"); rs.hidden = s.source !== "replay";
     if (rs.dataset.files !== s.replay.files.join("|")) {
@@ -666,11 +680,11 @@ const render = {
 
   events() {
     const list = store.events;
-    $("evMeta").textContent = `${list.length} in this session`;
+    $("evMeta").textContent = list.length ? `${list.length} this session` : "";
     $("eventBody").innerHTML = list.length ? list.map((a) => {
       const [cls, label] = SEV[a.sev] || SEV.info;
-      return `<tr><td class="t">${clock(a.t)}</td><td class="sv"><span class="pill ${cls}">${label}</span></td><td>${esc(a.msg)}</td></tr>`;
-    }).join("") : `<tr><td colspan="3" class="muted">No events yet.</td></tr>`;
+      return `<li><span class="t">${clock(a.t)}</span><span class="lv"><span class="chip ${cls}">${label}</span></span><span class="m">${esc(a.msg)}</span></li>`;
+    }).join("") : `<li class="empty">No events yet. Starts, faults and connection changes appear here.</li>`;
   },
 
   details() {
@@ -678,13 +692,14 @@ const render = {
     for (const d of store.cfg.features) {
       const row = $(`f-${d.key}`), z = f?.z?.[d.key] ?? null;
       row.querySelector(".v").textContent = fmt(f?.features?.[d.key], d.dp);
-      row.querySelector(".z").textContent = z === null ? "—" : signed(z, 1, " σ");
+      row.children[2].textContent = fmt(f?.normal?.[d.key] ?? d.mean, d.dp);
+      row.querySelector(".z").textContent = z === null ? NA : signed(z, 1, " σ");
     }
     $("winFill").textContent = f ? `(${f.window_fill} of ${store.cfg.window} samples)` : "";
     for (const s of store.cfg.sensors) {
       const row = $(`s-${s.id}`); if (!row) continue;
       const cs = f ? f.channels[s.id] : "idle";
-      row.querySelector(".v").textContent = !f ? "—" : s.id === "float" ? (f.reading.float ? "OK" : "Low") : s.id === "vib" ? `${fmt(f.reading.vib_rms, 3)} g` : `${fmt(f.reading[s.field], s.dp)} ${s.unit}`;
+      row.querySelector(".v").textContent = !f ? NA : s.id === "float" ? (f.reading.float ? "OK" : "Low") : s.id === "vib" ? `${fmt(f.reading.vib_rms, 3)} g` : `${fmt(f.reading[s.field], s.dp)} ${s.unit}`;
       row.querySelector(".l").textContent = { good: "Normal", warn: "Check", crit: "Alarm", idle: "Idle" }[cs];
     }
   },
@@ -696,30 +711,170 @@ const render = {
       .map(([k, v]) => `<div><small>${k}</small><span>${v}</span></div>`).join("");
     $("logChk").checked = s.logging.enabled;
     $("logPath").textContent = s.logging.enabled ? s.logging.path : "";
-    $("scorerName").textContent = `Model in use: ${s.scorer.kind === "forest" ? "a random forest trained on real pump data from another rig (SKAB). It learns this pump's normal in the first 2 minutes of running, and the demo scorer covers that time" : s.scorer.kind === "iforest" ? "trained Isolation Forest" : "demo scorer, a stand-in for Isolation Forest"}.`;
+    $("scorerName").textContent = `Model in use: ${s.scorer.kind === "forest" ? "a random forest trained on real pump data from another rig (SKAB). It learns this pump's normal in the first 2 minutes of running" : s.scorer.kind === "iforest" ? "a trained Isolation Forest" : "the demo scorer, a stand-in for Isolation Forest"}.`;
+  },
+
+  issues() {
+    const list = findIssues(), box = $("issues");
+    box.hidden = !list.length;
+    if (!list.length) return;
+    const crit = list.filter((i) => i.sev === "crit").length;
+    $("issuesMeta").textContent = `${list.length} ${list.length === 1 ? "issue" : "issues"}${crit ? `, ${crit} critical` : ""}`;
+    const html = list.map((i) => `<li><span class="chip ${i.sev}">${i.sev === "crit" ? "Error" : "Warning"}</span><span class="it">${esc(i.title)}</span><span class="fx"><b>Fix:</b> ${esc(i.fix)}</span></li>`).join("");
+    if ($("issueList").innerHTML !== html) $("issueList").innerHTML = html;
   },
 };
 
 function linkState() {
   const s = store.state, age = store.lastFrameAt ? (performance.now() - store.lastFrameAt) / 1000 : null;
-  if (!store.wsOpen) return { text: "Not connected to the Pi", bad: true };
+  if (!store.wsOpen) return { text: "Not connected to a rig", bad: true };
   if (!s) return { text: "Connecting", bad: true };
   if (s.paused) return { text: "Stream paused", bad: false };
   if (age === null || age > (store.cfg?.link?.stale_after_s ?? 3)) return { text: s.source_connected || s.source === "sim" ? "No data" : "ESP32 disconnected", bad: true };
-  const src = s.source === "sim" ? "Simulated data" : s.source === "replay" ? "Recorded data" : "Live from ESP32";
-  return { text: `${src} · updated ${fmt(age, 1)} s ago`, bad: false };
+  const src = s.source === "sim" ? "Simulated data" : s.source === "replay" ? "Recorded data" : "Live from the ESP32";
+  return { text: `${src}, ${fmt(age, 1)} s ago`, bad: false };
 }
+
+/* ====================================================================== problems and their fixes */
+const FIELD_SENSOR = { rpm: "speed sensor (A3144 Hall, GPIO26)", temp_c: "temperature sensor (DS18B20, GPIO4)",
+  current_a: "current sensor (ACS712, GPIO34 via divider)", flow_lpm: "flow sensor (YF-S201, GPIO27)",
+  pressure_bar: "pressure transducer (GPIO35 via divider)", vib_x: "accelerometer (ADXL345, I²C)", vib_y: "accelerometer (ADXL345, I²C)",
+  vib_z: "accelerometer (ADXL345, I²C)", vib_peak: "accelerometer (ADXL345, I²C)", float: "float switch (GPIO25)" };
+
+function fixForPortProblem(text) {
+  const t = String(text || "").toLowerCase();
+  if (t.includes("sensor fault")) return "The firmware sends no readings until both sensors answer. Temperature (DS18B20): check GPIO4, 3.3 V, GND and the 4.7 kΩ pull-up. Accelerometer (ADXL345): check SDA to GPIO21, SCL to GPIO22, 3.3 V and GND.";
+  if (t.includes("busy") || t.includes("access is denied")) return "Another program has the port open. Close Arduino IDE's Serial Monitor (or any serial terminal) and wait a few seconds.";
+  if (t.includes("permission denied")) return "Give your user access to serial ports: run  sudo usermod -aG dialout $USER  then log out and back in.";
+  if (t.includes("silent")) return "The board is connected but sends nothing. Flash the firmware with flash.bat, then check the DS18B20 and ADXL345 wiring (the firmware stays silent until both are found).";
+  if (t.includes("not valid pump json")) return "The board runs different firmware or a different baud rate. Flash firmware/esp32_pump_node with flash.bat (115200 baud).";
+  if (t.includes("no usb serial ports")) return "Plug the ESP32 in with a data-capable USB cable. On Windows, install the CP210x or CH340 driver if no COM port appears in Device Manager.";
+  if (t.includes("no data for") || t.includes("reopening")) return "The ESP32 stopped sending. Check the USB cable and power, then press the board's EN (reset) button.";
+  if (t.includes("connect refused") || t.includes("mqtt")) return "Check the MQTT broker address, port, user name and password in backend/config.py, and that the ESP32 is on the same network.";
+  if (t.includes("cannot read") || t.includes("replay")) return "Pick another recording in the Data source list, or record a new one with Start recording.";
+  if (t.includes("could not open") || t.includes("open failed") || t.includes("filenotfound")) return "That serial port does not exist. Set Data source to Auto so the ESP32 is found by itself.";
+  return "Check the ESP32's USB cable and power, then set Data source to Auto.";
+}
+
+function fixForReject(reason, detail) {
+  const d = String(detail || "");
+  if (reason === "not_json" && d.startsWith("# sensor fault")) {
+    const missing = [];
+    if (/temp=0/.test(d)) missing.push("temperature sensor (DS18B20): check GPIO4, 3.3 V, GND and the 4.7 kΩ pull-up to 3.3 V");
+    if (/adxl=0/.test(d)) missing.push("accelerometer (ADXL345): check SDA to GPIO21, SCL to GPIO22, 3.3 V and GND");
+    return { title: "A sensor on the ESP32 is not detected", fix: missing.length ? `Not found: ${missing.join("; ")}.` : "Check the DS18B20 and ADXL345 wiring." };
+  }
+  if (reason === "range") {
+    const field = d.split("=")[0];
+    return { title: `Reading out of range: ${d}`, fix: `Check the wiring and calibration of the ${FIELD_SENSOR[field] || field}. 5 V sensors must go through a voltage divider.` };
+  }
+  if (reason === "missing" || reason === "type") return { title: `The ESP32 sends an unexpected message format (${reason}: ${d})`, fix: "Its firmware is older or different. Re-flash it with flash.bat so it matches this dashboard." };
+  if (reason === "not_json") return { title: "The ESP32 prints text that isn't pump data", fix: "Wrong firmware or baud rate. Flash it with flash.bat (115200 baud)." };
+  if (reason === "parse" || reason === "too_long" || reason === "encoding") return { title: "Garbled data on the serial line", fix: "Usually a loose or long USB cable, electrical noise from the motor, or the wrong baud rate (must be 115200). Try another cable and route it away from the motor wiring." };
+  if (reason === "ts_order") return { title: "Readings arrived out of order", fix: "Usually harmless right after an ESP32 reset. If it keeps happening, re-flash the firmware." };
+  return { title: `Rejected readings (${reason})`, fix: "Re-flash the ESP32 with flash.bat and check the sensor wiring." };
+}
+
+function findIssues() {
+  const out = [], s = store.state, f = store.last;
+  if (!store.wsOpen) {
+    if (!store.connFailed) return out;      // still connecting: not an error yet
+    out.push({ sev: "crit", title: `Can't reach the rig backend at ${rigHost(UI.wsUrl)}`,
+      fix: location.protocol === "https:" && /^ws:\/\//.test(UI.wsUrl)
+        ? "This page is on https, so it needs the rig's https tunnel address. Run share.bat on the rig and paste its link through the plug button in the top bar."
+        : "Start it with start.bat (or python -m backend) on the computer the ESP32 is plugged into. If it runs on another device, press the plug button in the top bar and enter its address." });
+    return out;
+  }
+  if (!s) return out;
+  const link = linkState(), ser = s.serial;
+  if (s.source_live && link.bad && f) out.push({ sev: "crit", title: "The ESP32 stopped sending data", fix: fixForPortProblem(s.source_error || "no data for") });
+  else if (s.source !== "sim" && s.source_error) out.push({ sev: "crit", title: `Data source problem: ${s.source_error}`, fix: fixForPortProblem(s.source_error) });
+  if (ser?.auto && !ser.connected) {
+    for (const r of ser.scan || []) {
+      if (r.result.includes("✓") || r.result === "not reachable") continue;
+      out.push({ sev: "warn", title: `${r.port} (${r.desc}) is plugged in but not usable: ${r.result}`, fix: fixForPortProblem(r.result) });
+    }
+  }
+  const log = store.counterLog || [], first = log[0], c = s.counters;
+  if (first && c.invalid > first.c.invalid && c.last_invalid) {
+    const x = fixForReject(c.last_invalid.reason, c.last_invalid.detail);
+    out.push({ sev: c.last_invalid.reason === "range" || c.last_invalid.reason === "not_json" ? "crit" : "warn",
+      title: `${x.title} (${c.invalid - first.c.invalid} rejected in the last 30 s)`, fix: x.fix });
+  }
+  if (first && c.dropped - first.c.dropped >= 3) out.push({ sev: "warn", title: `${c.dropped - first.c.dropped} readings lost in the last 30 s`, fix: "Use a shorter, better USB cable and keep it away from the motor and mains wiring. Over Wi-Fi, move the ESP32 closer to the router." });
+  if (f && !link.bad) {
+    const r = f.reading;
+    if (s.source_live && r.pressure_raw < -0.3) out.push({ sev: "warn", title: "The pressure sensor sends no signal", fix: "Check its 5 V supply, the voltage divider and GPIO35. Pressure reads 0 until this is fixed." });
+    if (s.source_live && f.running && r.rpm < 200) out.push({ sev: "warn", title: "The pump seems to be running, but the speed sensor reads 0", fix: "Check the A3144 on GPIO26, its 10 kΩ pull-up, and that the magnet passes close to it." });
+    if (s.source_live && f.running && r.rpm >= 200 && r.current_a < 0.1) out.push({ sev: "warn", title: "The pump is turning, but the current sensor reads 0", fix: "Check the ACS712 on GPIO34 and its divider, and that it carries the motor's live wire." });
+    if (r.float === 0) out.push({ sev: "crit", title: "Water level low", fix: "Stop the pump now and refill the sump. This software only warns: it cannot switch the pump off. If the tank is full, check the float switch wiring on GPIO25." });
+    else if (f.diagnosis && (f.status === "WARNING" || f.status === "CRITICAL")) out.push({ sev: f.status === "CRITICAL" ? "crit" : "warn", title: `Pump ${f.status.toLowerCase()}: ${f.diagnosis.label} (${Math.round(f.diagnosis.confidence * 100)}% match)`, fix: f.diagnosis.action });
+    else if (f.status === "WARNING" || f.status === "CRITICAL") out.push({ sev: f.status === "CRITICAL" ? "crit" : "warn", title: `Pump ${f.status.toLowerCase()}: unusual readings that match no known fault`, fix: "Compare the readings with their normal values above and inspect the pump; record the run with Start recording for later analysis." });
+  }
+  return out;
+}
+
+/* ====================================================================== the alarm */
+const pageTitle = document.title;
+
+/* The most serious thing true right now, or null. Stale data is danger: the pump can't be seen. */
+function findAlarm() {
+  const s = store.state, f = store.last;
+  if (!store.wsOpen) return store.everConnected ? { level: "crit", word: "DANGER", title: "The dashboard lost its connection", fix: "The pump is not being watched. Check that the start.bat window is still open." } : null;
+  if (!s || !f) return null;
+  const link = linkState();
+  if (s.source_live && link.bad) return { level: "crit", word: "DANGER", title: "No readings from the pump", fix: `The pump is not being watched. ${fixForPortProblem(s.source_error || "no data for")}` };
+  if (link.bad || s.paused) return null;
+  const sim = s.source_live ? "" : s.source === "replay" ? "Recorded data: " : "Simulated: ";
+  const d = f.diagnosis;
+  // Sensors far from normal count on their own: the model can be weak on a fault it never trained on.
+  const far = SENSORS.filter((c) => f.channels[c.ch] === "crit").map((c) => c.label);
+  if (f.status === "DRY-RUN PROTECTION") return { level: "crit", word: "DANGER", title: `${sim}Water level low. Stop the pump.`, fix: d?.action || "" };
+  if (f.status === "CRITICAL" || (f.status === "WARNING" && far.length >= 2)) return { level: "crit", word: "DANGER", title: `${sim}${d ? d.label : "Readings far from normal"}`, fix: d?.action || "Stop the pump if it is safe to, and inspect it." };
+  if (f.status === "WARNING") return { level: "warn", word: "WARNING", title: `${sim}${d ? d.label : "Unusual readings"}`, fix: d?.action || "Compare the readings with their normal values and inspect the pump." };
+  if (f.status === "HEALTHY" && far.length) return { level: "warn", word: "WARNING", title: `${sim}${far.join(" and ")} far from normal`, fix: "Compare it with its normal value below, then inspect the pump and that sensor's wiring." };
+  return null;
+}
+
+/* Browsers only allow sound after the first click on the page. Silence lasts until the alarm changes. */
+const siren = (() => {
+  let ctx = null, key = null, level = null, timer = null;
+  const beep = () => {
+    if (!ctx || ctx.state !== "running" || api.muted || !level) return;
+    const o = ctx.createOscillator(), g = ctx.createGain(), t = ctx.currentTime;
+    o.frequency.value = level === "crit" ? 880 : 520;
+    g.gain.setValueAtTime(0.15, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
+    o.connect(g); g.connect(ctx.destination); o.start(t); o.stop(t + 0.35);
+  };
+  const api = {
+    muted: false,
+    arm() { try { ctx ||= new (window.AudioContext || window.webkitAudioContext)(); ctx.resume(); } catch {} },
+    set(a) {
+      const k = a ? `${a.level}|${a.title}` : null;
+      if (k !== key) { key = k; api.muted = false; }
+      if ((a?.level ?? null) === level) return;
+      level = a?.level ?? null; clearInterval(timer); timer = null;
+      if (level) { beep(); timer = setInterval(beep, level === "crit" ? 1000 : 4000); }
+    },
+  };
+  return api;
+})();
 
 /* ====================================================================== trend chart */
 const chart = { hover: null };
 function drawTrend() {
-  if (!store.cfg) return;
+  if (!store.cfg) {
+    $("chart").innerHTML = "";
+    $("chartWrap").dataset.empty = store.wsOpen ? "Waiting for the first readings" : "No rig connected, so there is nothing to plot yet";
+    return;
+  }
+  delete $("chartWrap").dataset.empty;
   const svg = $("chart"), M = METRICS[store.metric], frames = store.frames, n = UI.trendLen;
   $("trendTitle").textContent = M.unit ? `${M.label} (${M.unit})` : M.label;
-  const W = svg.clientWidth || 600, H = svg.clientHeight || 280, m = { l: 48, r: 56, t: 10, b: 24 };
+  const W = svg.clientWidth || 600, H = svg.clientHeight || 260, m = { l: 48, r: 48, t: 10, b: 24 };
   const pw = W - m.l - m.r, ph = H - m.t - m.b;
   const vals = frames.map(M.get), nums = vals.filter((v) => v !== null && v !== undefined);
-  const base = M.base ? store.cfg.baseline[M.base] : null;
+  const base = M.base ? normalOf(M, store.last) : null;
   let lo, hi;
   if (M.fixed) [lo, hi] = M.fixed;
   else { lo = Math.min(...nums, base); hi = Math.max(...nums, base); const pad = Math.max((hi - lo) * 0.2, Math.abs(base) * 0.02); lo -= pad; hi += pad; }
@@ -728,17 +883,18 @@ function drawTrend() {
   Object.assign(chart, { off, m, w: W });
   const step = pw / (n - 1);
   let bands = "", band = null;
+  const flush = () => { if (band) bands += `<rect class="band-${band.k}" x="${X(band.a) - step / 2}" y="${m.t}" width="${(band.b - band.a + 1) * step}" height="${ph}"/>`; band = null; };
   frames.forEach((f, i) => {
     const k = CELL[f.status] === "crit" ? "crit" : CELL[f.status] === "warn" ? "warn" : null;
-    if (band && band.k !== k) { bands += `<rect class="band-${band.k}" x="${X(band.a) - step / 2}" y="${m.t}" width="${(band.b - band.a + 1) * step}" height="${ph}"/>`; band = null; }
+    if (band && band.k !== k) flush();
     if (k && !band) band = { k, a: i }; if (band) band.b = i;
   });
-  if (band) bands += `<rect class="band-${band.k}" x="${X(band.a) - step / 2}" y="${m.t}" width="${(band.b - band.a + 1) * step}" height="${ph}"/>`;
+  flush();
   const tdp = M.fixed ? 2 : Math.max(0, Math.min(3, M.dp));
   let g = bands + `<g class="grid">${ticks.map((t) => `<line x1="${m.l}" x2="${m.l + pw}" y1="${Y(t)}" y2="${Y(t)}"/>`).join("")}</g>`;
   g += ticks.map((t) => `<text x="${m.l - 8}" y="${Y(t) + 4}" text-anchor="end">${t.toFixed(tdp)}</text>`).join("");
   const now = store.last?.t;
-  if (now) g += [0, 30, 60, 90, 119].map((s) => `<text x="${m.l + s / (n - 1) * pw}" y="${H - 4}" text-anchor="${s === 0 ? "start" : s === 119 ? "end" : "middle"}">${clock(now - (119 - s))}</text>`).join("");
+  if (now) g += [0, 60, 119].map((s) => `<text x="${m.l + s / (n - 1) * pw}" y="${H - 4}" text-anchor="${s === 0 ? "start" : s === 119 ? "end" : "middle"}">${clock(now - (119 - s))}</text>`).join("");
   if (M.thresholds) {
     const st = store.cfg.status;
     g += `<line class="th-warn" x1="${m.l}" x2="${m.l + pw}" y1="${Y(st.warn)}" y2="${Y(st.warn)}"/><text x="${m.l + pw + 6}" y="${Y(st.warn) + 4}">warn</text>`;
@@ -750,8 +906,7 @@ function drawTrend() {
   vals.forEach((v, i) => { if (v === null || v === undefined) { pen = false; return; } d += `${pen ? "L" : "M"}${X(i).toFixed(1)} ${Y(v).toFixed(1)}`; pen = true; });
   g += `<path class="series" d="${d}"/>`;
   const lv = vals[vals.length - 1];
-  if (lv !== null && lv !== undefined && !M.thresholds) g += `<circle class="end" cx="${X(vals.length - 1)}" cy="${Y(lv)}" r="3"/>`;
-  if (lv !== null && lv !== undefined && M.thresholds) g += `<circle class="end" cx="${X(vals.length - 1)}" cy="${Y(lv)}" r="3"/><text class="end-label" x="${X(vals.length - 1) - 6}" y="${Y(lv) - 8}" text-anchor="end">${fmt(lv, 2)}</text>`;
+  if (lv !== null && lv !== undefined) g += `<circle class="end" cx="${X(vals.length - 1)}" cy="${Y(lv)}" r="3"/><text class="end-label" x="${X(vals.length - 1) - 6}" y="${Y(lv) - 8}" text-anchor="end">${fmt(lv, M.dp)}</text>`;
   if (!nums.length) g += `<text x="${m.l + pw / 2}" y="${m.t + ph / 2}" text-anchor="middle">${frames.length ? "No score while the pump is stopped" : "Waiting for data"}</text>`;
   if (chart.hover !== null && vals[chart.hover] !== undefined) g += `<line class="cross" x1="${X(chart.hover)}" x2="${X(chart.hover)}" y1="${m.t}" y2="${m.t + ph}"/>`;
   svg.setAttribute("viewBox", `0 0 ${W} ${H}`); svg.innerHTML = g;
@@ -764,8 +919,44 @@ function drawTrend() {
   tip.style.left = `${x + 12 + tip.offsetWidth > svg.clientWidth ? x - tip.offsetWidth - 8 : x + 12}px`;
 }
 
+/* ====================================================================== connection dialog */
+function shareLink() {
+  const host = rigHost(UI.wsUrl);
+  if (location.protocol.startsWith("http") && host === location.host) return `${location.protocol}//${location.host}/`;
+  const baseUrl = location.protocol.startsWith("http") ? `${location.origin}${location.pathname}` : "https://your-app.vercel.app/";
+  return `${baseUrl}?pi=${encodeURIComponent(host)}`;
+}
+function connUi() {
+  const st = $("connState");
+  const host = rigHost(UI.wsUrl);
+  if (store.wsOpen) { st.className = ""; st.textContent = `Connected to ${host}.`; }
+  else {
+    let msg = `Not connected to ${host}.`;
+    msg += location.protocol === "https:" && /^ws:\/\//.test(UI.wsUrl)
+      ? " This page is on https, so the rig must be reached over https (a tunnel address), not a plain local IP."
+      : " Check that the backend is running and that this device can reach it.";
+    st.className = "err"; st.textContent = msg;
+  }
+  $("shareLink").textContent = shareLink();
+}
+function openConn() { $("connAddr").value = rigHost(UI.wsUrl); connUi(); if (!$("conn").open) $("conn").showModal(); }
+
 /* ====================================================================== input */
 function wire() {
+  $("connBtn").addEventListener("click", openConn);
+  $("connCancel").addEventListener("click", () => $("conn").close());
+  $("connForm").addEventListener("submit", (e) => {
+    const url = toWsUrl($("connAddr").value);
+    if (!url) { e.preventDefault(); $("connAddr").focus(); return; }
+    try { localStorage.setItem("phc-rig", rigHost(url)); } catch {}
+    transport.retarget(url); connUi();
+  });
+  $("copyLink").addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText(shareLink()); $("copyLink").textContent = "Copied"; } catch { $("copyLink").textContent = "Copy failed"; }
+    setTimeout(() => { $("copyLink").textContent = "Copy link"; }, 1500);
+  });
+  setTimeout(() => { if (!store.everConnected) openConn(); }, 4000);
+
   $("tabs").addEventListener("click", (e) => {
     const b = e.target.closest("button[data-m]"); if (!b) return;
     store.metric = b.dataset.m; chart.hover = null;
@@ -785,25 +976,36 @@ function wire() {
   $("valve").addEventListener("input", (e) => { $("valveVal").textContent = `${e.target.value}% closed`; clearTimeout(vt); vt = setTimeout(() => transport.send("set_valve", Number(e.target.value)), 150); });
   $("pumpBtn").addEventListener("click", () => { const s = store.state?.sim; if (s) transport.send("set_pump", !(s.pump_cmd && !s.tripped)); });
   $("pauseBtn").addEventListener("click", () => transport.send("set_paused", !store.state?.paused));
+  $("relearnBtn").addEventListener("click", () => transport.send("relearn"));
+  $("alarmMute").addEventListener("click", () => { siren.muted = true; render.alarm(); });
+  document.addEventListener("pointerdown", () => siren.arm());
   $("srcSel").addEventListener("change", (e) => transport.send("set_source", e.target.value));
   $("replaySel").addEventListener("change", (e) => transport.send("set_replay_file", e.target.value));
   $("logChk").addEventListener("change", (e) => transport.send("set_logging", e.target.checked));
   $("recBtn").addEventListener("click", () => transport.send("set_logging", !store.state?.logging.enabled));
 
-  // Rail: mark the section in view with the accent line.
-  const links = [...document.querySelectorAll(".rail a")];
-  const io = new IntersectionObserver((entries) => {
-    entries.forEach((en) => { if (en.isIntersecting) links.forEach((a) => a.setAttribute("aria-current", a.getAttribute("href") === `#${en.target.id}`)); });
-  }, { rootMargin: "-20% 0px -70% 0px" });
-  ["overview", "trendCard", "eventsCard", "controlsCard", "detailsCard"].forEach((id) => io.observe($(id)));
+  // Section links: mark the one in view.
+  const links = [...document.querySelectorAll(".sections a")];
+  const ids = ["overview", "trendCard", "eventsCard", "controlsCard", "detailsCard"];
+  let ticking = false;
+  const mark = () => {
+    ticking = false;
+    const line = innerHeight * 0.3;
+    let cur = ids[0];
+    for (const id of ids) if ($(id).getBoundingClientRect().top <= line) cur = id;
+    if (innerHeight + scrollY >= document.documentElement.scrollHeight - 4) cur = ids[ids.length - 1];
+    links.forEach((a) => a.setAttribute("aria-current", a.getAttribute("href") === `#${cur}`));
+  };
+  addEventListener("scroll", () => { if (!ticking) { ticking = true; requestAnimationFrame(mark); } }, { passive: true });
+  mark();
 
-  // Theme: dark -> light -> system.
+  // Theme: dark (graphite), light (paper) or the system's.
   const sysLight = matchMedia("(prefers-color-scheme: light)");
   const apply = (pref) => {
     const root = document.documentElement;
     root.dataset.themePref = pref; root.dataset.theme = pref === "system" ? (sysLight.matches ? "light" : "dark") : pref;
-    $("themeBtn").dataset.tip = `Theme: ${pref}`;
-    document.querySelector('meta[name="theme-color"]').content = root.dataset.theme === "light" ? "#f2f2f4" : "#171719";
+    $("themeBtn").title = `Theme: ${pref}`; $("themeBtn").setAttribute("aria-label", `Theme: ${pref}. Change theme`);
+    document.querySelector('meta[name="theme-color"]').content = getComputedStyle(root).getPropertyValue("--color-paper").trim() || "#1b1d21";
     try { localStorage.setItem("phc-theme", pref); } catch {}
   };
   $("themeBtn").addEventListener("click", () => {
@@ -812,134 +1014,15 @@ function wire() {
   });
   sysLight.addEventListener("change", () => { if (document.documentElement.dataset.themePref === "system") apply("system"); });
   apply(document.documentElement.dataset.themePref || "dark");
-  setInterval(() => { if (store.cfg) render.header(); render.issues(); }, 1000);
+  setInterval(() => { if (store.cfg) render.header(); render.issues(); render.alarm(); }, 1000);
 }
 
-/* ====================================================================== problems and their fixes */
-const FIELD_SENSOR = { rpm: "speed sensor (A3144 Hall, GPIO26)", temp_c: "temperature sensor (DS18B20, GPIO4)",
-  current_a: "current sensor (ACS712, GPIO34 via divider)", flow_lpm: "flow sensor (YF-S201, GPIO27)",
-  pressure_bar: "pressure transducer (GPIO35 via divider)", vib_x: "accelerometer (ADXL345, I²C)", vib_y: "accelerometer (ADXL345, I²C)",
-  vib_z: "accelerometer (ADXL345, I²C)", vib_peak: "accelerometer (ADXL345, I²C)", float: "float switch (GPIO25)" };
-
-function fixForPortProblem(text) {
-  const t = String(text || "").toLowerCase();
-  if (t.includes("busy") || t.includes("access is denied")) return "Another program has the port open. Close Arduino IDE's Serial Monitor (or any serial terminal) and wait a few seconds.";
-  if (t.includes("permission denied")) return "Give your user access to serial ports: run  sudo usermod -aG dialout $USER  then log out and back in.";
-  if (t.includes("silent")) return "The board is connected but sends nothing. Flash the firmware with flash.bat, then check the DS18B20 and ADXL345 wiring (the firmware stays silent until both are found).";
-  if (t.includes("not valid pump json")) return "The board runs different firmware or a different baud rate. Flash firmware/esp32_pump_node with flash.bat (115200 baud).";
-  if (t.includes("no usb serial ports")) return "Plug the ESP32 in with a data-capable USB cable. On Windows, install the CP210x or CH340 driver if no COM port appears in Device Manager.";
-  if (t.includes("no data for") || t.includes("reopening")) return "The ESP32 stopped sending. Check the USB cable and power, then press the board's EN (reset) button.";
-  if (t.includes("connect refused") || t.includes("mqtt")) return "Check the MQTT broker address, port, user name and password in backend/config.py, and that the ESP32 is on the same network.";
-  if (t.includes("cannot read") || t.includes("replay")) return "Pick another recording in the Data source list, or record a new one with Start recording.";
-  if (t.includes("could not open") || t.includes("open failed") || t.includes("filenotfound")) return "That serial port does not exist. Set Data source to Auto so the ESP32 is found by itself.";
-  return "Check the ESP32's USB cable and power, then set Data source to Auto.";
-}
-
-function fixForReject(reason, detail) {
-  const d = String(detail || "");
-  if (reason === "not_json" && d.startsWith("# sensor fault")) {
-    const missing = [];
-    if (/temp=0/.test(d)) missing.push("temperature sensor (DS18B20): check GPIO4, 3.3 V, GND and the 4.7 kΩ pull-up to 3.3 V");
-    if (/adxl=0/.test(d)) missing.push("accelerometer (ADXL345): check SDA → GPIO21, SCL → GPIO22, 3.3 V and GND");
-    return { title: "A sensor on the ESP32 is not detected", fix: missing.length ? `Not found: ${missing.join("; ")}.` : "Check the DS18B20 and ADXL345 wiring." };
-  }
-  if (reason === "range") {
-    const field = d.split("=")[0];
-    return { title: `Reading out of range: ${d}`, fix: `Check the wiring and calibration of the ${FIELD_SENSOR[field] || field}. 5 V sensors must go through a voltage divider.` };
-  }
-  if (reason === "missing" || reason === "type") return { title: `The ESP32 sends an unexpected message format (${reason}: ${d})`, fix: "Its firmware is older or different. Re-flash it with flash.bat so it matches this dashboard." };
-  if (reason === "not_json") return { title: "The ESP32 prints text that isn't pump data", fix: "Wrong firmware or baud rate. Flash it with flash.bat (115200 baud)." };
-  if (reason === "parse" || reason === "too_long" || reason === "encoding") return { title: "Garbled data on the serial line", fix: "Usually a loose or long USB cable, electrical noise from the motor, or the wrong baud rate (must be 115200). Try another cable and route it away from the motor wiring." };
-  if (reason === "ts_order") return { title: "Readings arrived out of order", fix: "Usually harmless right after an ESP32 reset. If it keeps happening, re-flash the firmware." };
-  return { title: `Rejected readings (${reason})`, fix: "Re-flash the ESP32 with flash.bat and check the sensor wiring." };
-}
-
-function findIssues() {
-  const out = [], s = store.state, f = store.last;
-  if (!store.wsOpen) {
-    const host = rigHost(UI.wsUrl);
-    out.push({ sev: "crit", title: `Can't reach the rig backend at ${host}`,
-      fix: location.protocol === "https:" && /^ws:\/\//.test(UI.wsUrl)
-        ? "This page is on https, so it needs the rig's https tunnel address. Run share.bat on the rig and paste its link via the plug icon."
-        : "Start it with start.bat (or python -m backend) on the computer the ESP32 is plugged into. If it runs on another device, click the plug icon in the left rail and enter its address." });
-    return out;
-  }
-  if (!s) return out;
-  const link = linkState(), ser = s.serial;
-
-  if (s.source_live && link.bad && store.everConnected && f) {
-    out.push({ sev: "crit", title: "The ESP32 stopped sending data", fix: fixForPortProblem(s.source_error || "no data for") });
-  } else if (s.source !== "sim" && s.source_error) {
-    out.push({ sev: "crit", title: `Data source problem: ${s.source_error}`, fix: fixForPortProblem(s.source_error) });
-  }
-  // A device is plugged in but was rejected by the auto-scan (only real problems, not the empty case).
-  if (ser?.auto && !ser.connected) {
-    for (const r of ser.scan || []) {
-      if (r.result.includes("✓") || r.result === "not reachable") continue;
-      out.push({ sev: "warn", title: `${r.port} (${r.desc}) is plugged in but not usable: ${r.result}`, fix: fixForPortProblem(r.result) });
-    }
-  }
-  // New rejects / losses in the last ~30 s.
-  const log = store.counterLog || [], first = log[0], c = s.counters;
-  if (first && c.invalid > first.c.invalid && c.last_invalid) {
-    const x = fixForReject(c.last_invalid.reason, c.last_invalid.detail);
-    out.push({ sev: c.last_invalid.reason === "range" || c.last_invalid.reason === "not_json" ? "crit" : "warn",
-      title: `${x.title} (${c.invalid - first.c.invalid} rejected in the last 30 s)`, fix: x.fix });
-  }
-  if (first && c.dropped - first.c.dropped >= 3) {
-    out.push({ sev: "warn", title: `${c.dropped - first.c.dropped} readings lost in the last 30 s`, fix: "Use a shorter, better USB cable and keep it away from the motor and mains wiring. Over Wi-Fi, move the ESP32 closer to the router." });
-  }
-  // The pump itself.
-  if (f && !link.bad) {
-    if (f.reading.float === 0) {
-      out.push({ sev: "crit", title: "Water level low: the pump is protected from running dry", fix: "Refill the sump so the float switch reads OK, then restart the pump." });
-    } else if (f.diagnosis && (f.status === "WARNING" || f.status === "CRITICAL")) {
-      out.push({ sev: f.status === "CRITICAL" ? "crit" : "warn", title: `Pump ${f.status.toLowerCase()}: ${f.diagnosis.label} (${Math.round(f.diagnosis.confidence * 100)}% match)`, fix: f.diagnosis.action });
-    } else if (f.status === "WARNING" || f.status === "CRITICAL") {
-      out.push({ sev: f.status === "CRITICAL" ? "crit" : "warn", title: `Pump ${f.status.toLowerCase()}: unusual readings that match no known fault`, fix: "Compare the readings with their normal values above and inspect the pump; record the run with Start recording for later analysis." });
-    }
-  }
-  return out;
-}
-
-/* ====================================================================== connection dialog */
-function shareLink() {
-  const host = rigHost(UI.wsUrl);
-  const servedByRig = location.protocol.startsWith("http") && host === location.host;
-  if (servedByRig) return `${location.protocol}//${location.host}/`;
-  const base = location.protocol.startsWith("http") ? `${location.origin}${location.pathname}` : "https://<your-app>.vercel.app/";
-  return `${base}?pi=${encodeURIComponent(host)}`;
-}
-function connUi() {
-  const st = $("connState"); if (!st) return;
-  const host = rigHost(UI.wsUrl);
-  if (store.wsOpen) { st.className = "state"; st.textContent = `Connected to ${host}.`; }
-  else {
-    let msg = `Not connected to ${host}.`;
-    if (location.protocol === "https:" && /^ws:\/\//.test(UI.wsUrl)) msg += " This page is https, so the rig must be reached over https (a tunnel address), not a plain local IP.";
-    else msg += " Check that the backend is running and that this device can reach it.";
-    st.className = "state err"; st.textContent = msg;
-  }
-  $("shareLink").textContent = shareLink();
-}
-function openConn() { $("connAddr").value = rigHost(UI.wsUrl); connUi(); if (!$("conn").open) $("conn").showModal(); }
-$("connBtn").addEventListener("click", openConn);
-$("connCancel").addEventListener("click", () => $("conn").close());
-$("connForm").addEventListener("submit", (e) => {
-  const url = toWsUrl($("connAddr").value);
-  if (!url) { e.preventDefault(); return; }
-  try { localStorage.setItem("phc-rig", rigHost(url)); } catch {}
-  transport.retarget(url);
-  connUi();
-});
-$("copyLink").addEventListener("click", async () => {
-  try { await navigator.clipboard.writeText(shareLink()); $("copyLink").textContent = "Copied"; } catch { $("copyLink").textContent = "Copy failed"; }
-  setTimeout(() => { $("copyLink").textContent = "Copy link"; }, 1500);
-});
-// Opened somewhere that is not a rig (e.g. Vercel) and nothing answers: ask for the address.
-setTimeout(() => { if (!store.everConnected) openConn(); }, 4000);
-
+buildShell();
 wire();
+render.events();
+drawTrend();
+render.issues();
+setTimeout(() => render.issues(), 1200);   // a refused connection is known after the first attempt
 transport.connect();
 </script>
 </body>

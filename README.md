@@ -84,6 +84,11 @@ It is deep-merged over `CONFIG`:
 
 ## Sharing it with someone
 
+To send it to someone with their own hardware, run `python tools/make_package.py` and send
+`build/PumpMonitorPro.zip`. [`FRIEND_SETUP.md`](FRIEND_SETUP.md) inside it covers wiring, flashing,
+the `check.bat` sensor check and what the alarms mean. Test the software without a rig using
+`python tools/test_robustness.py`, `tools/test_e2e.py` and `tools/test_autodetect.py`.
+
 The hardware always plugs into the computer or Raspberry Pi that runs the backend. Phones and other
 computers only open the dashboard, and the backend does the rest. There are three ways to share it.
 
@@ -213,10 +218,12 @@ python tools/train_skab.py --out models/skab_forest.json    # trains, tests, exp
 
 SKAB's pump runs at different values from ours, so the forest only sees deviations from a pump's
 own baseline. It learns that baseline from the first 2 minutes of running after each start of the
-app or change of data source, and the demo scorer covers those 2 minutes. If the pump is already
-faulty in that period, the fault is learned as normal. SKAB has no speed sensor or vibration peak,
-so `rpm_mean` and `vib_peak` are not model inputs. Per-sensor alarms and the fault names still use
-the hand-set values in `config.py`.
+app or change of data source. If the pump is already faulty in that period, the fault is learned as
+normal. On a real pump the status shows **Learning** for those 2 minutes and only the low-water check
+is active, because the hand-set values in `config.py` don't describe that pump. Once learned,
+per-sensor alarms, fault names and the normal values on screen all use the learned baseline.
+Simulated and replayed data match `config.py`, so the demo scorer covers those 2 minutes there.
+SKAB has no speed sensor or vibration peak, so `rpm_mean` and `vib_peak` are not model inputs.
 
 Test results on SKAB (whole runs held out, about 1 % of healthy windows allowed over the limit):
 30 of 34 fault runs caught, 5.3 false alarms per hour of healthy running. These describe SKAB's

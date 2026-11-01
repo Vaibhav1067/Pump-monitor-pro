@@ -67,16 +67,18 @@ CONFIG = {
 
     # ------------------------------------------------------------------ validation
     # Physical plausibility ranges [min, max] for each incoming field.
+    # Set to what the sensors can electrically report: one rejected field discards the whole
+    # message, so these must only catch garbage, never an unusual but real reading.
     "ranges": {
-        "rpm":          [0, 3000],
-        "temp_c":       [-10, 100],
-        "current_a":    [0, 20],       # ACS712-20A
-        "flow_lpm":     [0, 40],       # YF-S201 rated 1-30 L/min
-        "pressure_bar": [-0.1, 5.2],   # 0-5 bar transducer, small tolerance for offset noise
+        "rpm":          [0, 8000],     # firmware debounce limit is 7500 rpm
+        "temp_c":       [-55, 125],    # DS18B20
+        "current_a":    [0, 30],       # ACS712-20A, or the 30 A part
+        "flow_lpm":     [0, 200],      # YF-S201 rated 1-30 L/min, but a large pump can overrun it
+        "pressure_bar": [-0.7, 5.5],   # 0-5 bar transducer; about -0.6 = no sensor signal (0 V)
         "vib_x":        [0, 16],       # ADXL345 +/-16 g full scale, per-axis AC RMS
         "vib_y":        [0, 16],
         "vib_z":        [0, 16],
-        "vib_peak":     [0, 16],
+        "vib_peak":     [0, 33],       # deviation from the mean: swing can exceed 16 g
     },
     "required_fields": ["ts", "rpm", "temp_c", "current_a", "flow_lpm",
                         "pressure_bar", "vib_x", "vib_y", "vib_z", "float"],
@@ -125,7 +127,9 @@ CONFIG = {
         "crit": 0.60,              # score > crit  -> CRITICAL
         "debounce_samples": 2,     # a new band must persist this many samples before it is latched
         "deadband": 0.08,          # de-escalate only once score is this far below the band threshold
-        "standby_rpm": 200,        # rpm below this = pump not running -> STANDBY
+        "standby_rpm": 200,        # STANDBY only when rpm, current and flow are all below these
+        "standby_current_a": 0.5,  # above the ACS712 + ESP32 ADC noise floor with the motor off
+        "standby_flow_lpm": 1.0,
         "startup_inhibit_s": 8,    # alarm inhibit after a start, while the window refills
         "channel_z_warn": 2.0,     # per-sensor tile colouring from |z| of its primary feature
         "channel_z_crit": 4.0,
@@ -173,7 +177,7 @@ CONFIG = {
             },
             "dry_run": {
                 "label": "Dry run (inlet level LOW)",
-                "action": "Refill the sump. Interlock is latched: restart the pump manually once the level is restored.",
+                "action": "Stop the pump now and refill the sump. This software only warns: it cannot switch the pump off.",
             },
         },
     },

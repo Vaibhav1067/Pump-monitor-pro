@@ -19,6 +19,7 @@ import json
 import os
 import subprocess
 import sys
+import tempfile
 import time
 
 import websockets
@@ -36,8 +37,13 @@ async def main():
     fake = spawn("tools/fake_esp32.py", "--tcp", str(TCP), "--quiet", "--seed", "3",
                  "--bad-every", "6", "--drop-every", "9", "--stall-after", "12", "--stall-s", "9")
     time.sleep(1.0)
+    # The formula scores from the first window. The forest's 2 minutes of learning on a live
+    # source would outlast this test, so tools/test_robustness.py covers it instead.
+    conf = os.path.join(tempfile.gettempdir(), "pump_e2e_config.json")
+    with open(conf, "w", encoding="utf-8") as fh:
+        json.dump({"scorer": {"model_path": None}}, fh)
     server = spawn("-m", "backend", "--source", "serial", "--serial-port", f"socket://127.0.0.1:{TCP}",
-                   "--port", str(HTTP), "--host", "127.0.0.1", "--log")
+                   "--port", str(HTTP), "--host", "127.0.0.1", "--log", "--config", conf)
     ok = True
 
     def check(cond, what):

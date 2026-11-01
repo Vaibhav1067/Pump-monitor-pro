@@ -34,7 +34,7 @@ class AlarmManager:
         cond = {
             "AI-101.HIHI": (st == "CRITICAL", "Anomaly score high-high (CRITICAL)", "HIGH", sval),
             "AI-101.HI": (st in ("WARNING", "CRITICAL"), "Anomaly score high (WARNING)", "MED", sval),
-            "LSL-101.LO": (r["float"] == 0, "Inlet level low — dry-run interlock", "HIGH", r["float"]),
+            "LSL-101.LO": (r["float"] == 0, "Inlet level low: stop the pump", "HIGH", r["float"]),
         }
         z = frame["z"]
         zc, db = self.cfg["status"]["channel_z_crit"], self.cfg["alarms"]["channel_deadband_z"]

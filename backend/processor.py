@@ -14,8 +14,9 @@ from .scorer import standardise
 
 HEALTHY, WARNING, CRITICAL = "HEALTHY", "WARNING", "CRITICAL"
 STANDBY, STARTING, DRY_RUN = "STANDBY", "STARTING", "DRY-RUN PROTECTION"
+LEARNING = "LEARNING"
 
-SEVERITY = {HEALTHY: "info", STANDBY: "info", STARTING: "info", WARNING: "warn",
+SEVERITY = {HEALTHY: "info", STANDBY: "info", STARTING: "info", LEARNING: "info", WARNING: "warn",
             CRITICAL: "crit", DRY_RUN: "crit"}
 
 _alert_ids = itertools.count(1)
@@ -58,6 +59,12 @@ class Processor:
         self.pending_n = 0
         self.prev_float = None
         self.frame_no = 0
+
+    def relearn(self):
+        """Forget the learned baseline of the running pump and learn it again."""
+        if hasattr(self.scorer, "reset"):
+            self.scorer.reset()
+        self.band = None
 
     def reset_counters(self):
         self.counters = {"received": 0, "valid": 0, "invalid": 0, "dropped": 0,
@@ -106,12 +113,14 @@ class Processor:
 
     def _process(self, r, now, alerts):
         st = self.st
-        running = r["rpm"] >= st["standby_rpm"]
+        # Any one sign of running counts, so a dead speed sensor can't hide a running pump as STANDBY.
+        running = (r["rpm"] >= st["standby_rpm"] or r["current_a"] >= st["standby_current_a"]
+                   or r["flow_lpm"] >= st["standby_flow_lpm"])
 
         # Float switch is a safety interlock, never an ML input.
         if self.prev_float is not None and r["float"] != self.prev_float:
             if r["float"] == 0:
-                alerts.append(make_alert(now, "crit", "Water level LOW — dry-run protection tripped", DRY_RUN))
+                alerts.append(make_alert(now, "crit", "Water level low: stop the pump", DRY_RUN))
             else:
                 alerts.append(make_alert(now, "info", "Water level back to normal"))
         elif self.prev_float is None and r["float"] == 0:
@@ -127,15 +136,24 @@ class Processor:
             self.band = None
         self.running = running
 
-        features = z = score = health = None
+        inhibited = running and (r["ts"] - self.start_ts) < st["startup_inhibit_s"] * 1000
+        features = z = score = health = normal = None
         extras = {}
         if running:
             self.window.push(r)
             if self.window.full:
                 features = self.window.features()
-                z = standardise(features, self.cfg["features"])
-                score, extras = self.scorer.score(features)
-                health = round((1.0 - score) * 100)
+                learning = getattr(self.scorer, "learning", False)
+                # Start-up surges and a dry pump must not be learned as this pump's normal.
+                if not (learning and (inhibited or r["float"] == 0)):
+                    score, extras = self.scorer.score(features)
+                live = self.scorer.live_features() if hasattr(self.scorer, "live_features") else None
+                if live:
+                    normal = {f["key"]: round(f["mean"], 4) for f in live}
+                if not getattr(self.scorer, "holds_alarms", False):
+                    z = standardise(features, live or self.cfg["features"])
+                if score is not None:
+                    health = round((1.0 - score) * 100)
 
         eng = engineering(r, features, running, self.cfg)
         if running and self._prev_run_ts is not None and 0 < r["ts"] - self._prev_run_ts <= 5000:
@@ -145,13 +163,15 @@ class Processor:
             self.totals["pumped_l"] += r["flow_lpm"] * dt / 60.0
         self._prev_run_ts = r["ts"] if running else None
 
-        inhibited = running and (r["ts"] - self.start_ts) < st["startup_inhibit_s"] * 1000
+        learning_left = self.scorer.learning_left if getattr(self.scorer, "holds_alarms", False) else None
         if r["float"] == 0:
             status = DRY_RUN
         elif not running:
             status = STANDBY
-        elif inhibited or score is None:
+        elif inhibited or (score is None and learning_left is None):
             status = STARTING
+        elif score is None:
+            status = LEARNING
         else:
             status = self._debounced_band(score)
 
@@ -167,6 +187,7 @@ class Processor:
             "reading": r, "running": running,
             "features": features, "z": z,
             "score": score, "health": health, "status": status,
+            "normal": normal, "learning_left": learning_left,
             "window_fill": len(self.window.buf),
             "inhibit_left_s": max(0.0, st["startup_inhibit_s"] - (r["ts"] - self.start_ts) / 1000) if inhibited else 0,
             "channels": self._channel_states(r, z, running),
@@ -209,12 +230,12 @@ class Processor:
         """Plain-language event text for the dashboard's event list."""
         sev = SEVERITY[new]
         text = {HEALTHY: "Healthy", WARNING: "Warning", CRITICAL: "Critical",
-                STANDBY: "Pump stopped", STARTING: "Pump started",
-                DRY_RUN: "Dry-run protection: pump stopped"}[new]
+                STANDBY: "Pump stopped", STARTING: "Pump started", LEARNING: "Learning this pump's normal running",
+                DRY_RUN: "Water level low: stop the pump"}[new]
         if new == HEALTHY and old in (WARNING, CRITICAL):
             text = "Back to healthy"
         if score is not None and new in (WARNING, CRITICAL):
-            text += f" — anomaly score {score:.2f}"
+            text += f": anomaly score {score:.2f}"
             if z:
                 names = []
                 for k, _ in sorted(z.items(), key=lambda kv: -abs(kv[1])):

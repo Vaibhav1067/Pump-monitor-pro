@@ -110,7 +110,7 @@ class SerialSource:
             if "socket://" in dev:
                 return None, "not reachable", None
             return None, f"cannot open: {msg[:70]}", None
-        buf, got_bytes = b"", False
+        buf, got_bytes, fault = b"", False, None
         deadline = time.monotonic() + self.probe_s    # the ESP32 resets when the port opens; allow for boot
         try:
             while time.monotonic() < deadline and not self._stop.is_set():
@@ -120,6 +120,8 @@ class SerialSource:
                 got_bytes, buf = True, buf + chunk
                 while b"\n" in buf:
                     line, buf = buf.split(b"\n", 1)
+                    if line.startswith(b"# sensor fault"):
+                        fault = line
                     try:
                         parse_line(line, self.cfg)
                     except Invalid:
@@ -131,6 +133,9 @@ class SerialSource:
             ser.close()
             return None, f"read error ({str(e)[:50]})", None
         ser.close()
+        if fault:
+            missing = [name for name, tag in (("temperature sensor", b"temp=0"), ("accelerometer", b"adxl=0")) if tag in fault]
+            return None, f"sensor fault: {' and '.join(missing) or 'a sensor'} not found", None
         if not got_bytes:
             return None, "silent: no data (firmware flashed? sensors wired?)", None
         return None, "sends data, but not valid pump JSON (wrong firmware or baud?)", None

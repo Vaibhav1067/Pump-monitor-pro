@@ -138,8 +138,10 @@ class RandomForestScorer:
        "calibration": {"lo": float, "warn_raw": float, "crit_raw": float,
                        "warn": 0.3, "crit": 0.6}}
     The training pump differs from this one, so the forest only ever sees deviations from
-    the running pump's own baseline. That baseline is learned from the first
-    baseline_windows scored windows, and the demo scorer covers that period.
+    the running pump's own baseline, learned from the first baseline_windows scored windows.
+    While learning, a real pump gets no score (the hand-set values in config.py don't describe
+    it, so they would raise false alarms). Simulated and replayed data match those values, so
+    fallback_on stays True for them and the demo scorer covers the period.
     """
     kind = "forest"
 
@@ -154,11 +156,39 @@ class RandomForestScorer:
         self.anchors = [(cal["lo"], 0.0), (cal["warn_raw"], cal["warn"]), (cal["crit_raw"], cal["crit"])]
         self.name = f"Random forest ({os.path.basename(path)}, {len(self.trees)} trees)"
         self.fallback = DemoScorer(cfg)
+        self.fallback_on = True
+        self.feat_cfg = cfg["features"]
+        self.all_keys = [f["key"] for f in cfg["features"]]
         self.reset()
 
     def reset(self):
         """A different data source is a different pump: learn its baseline again."""
-        self.rows, self.base = [], None
+        self.rows, self.base, self.adapted = [], None, None
+
+    @property
+    def learning(self):
+        return self.base is None
+
+    @property
+    def holds_alarms(self):
+        return self.learning and not self.fallback_on
+
+    @property
+    def learning_left(self):
+        return max(0, self.n_base - len(self.rows))
+
+    def live_features(self):
+        """config.py's feature table moved onto the real pump's learned normal, so per-sensor
+        alarms and fault names judge this pump. Keeps config.py's tolerance as a percentage."""
+        if self.fallback_on or self.base is None:
+            return None
+        if self.adapted is None:
+            self.adapted = []
+            for f in self.feat_cfg:
+                m, sd = self.base[f["key"]]
+                tol = f["scale"] * abs(m) / abs(f["mean"]) if f["mean"] and m else f["scale"]
+                self.adapted.append({**f, "mean": m, "scale": max(tol, 2 * sd)})
+        return self.adapted
 
     def raw(self, x):
         x = [_f32(v) for v in x]
@@ -176,8 +206,10 @@ class RandomForestScorer:
             self.rows.append(features)
             left = self.n_base - len(self.rows)
             if left <= 0:
-                self.base = learn_baseline(self.rows, self.keys, self.floor_rel, self.floor_abs)
+                self.base = learn_baseline(self.rows, self.all_keys, self.floor_rel, self.floor_abs)
                 self.rows = []
+            if not self.fallback_on:
+                return None, {"learning_left": max(0, left)}
             s, extras = self.fallback.score(features)
             return s, {**extras, "learning_left": max(0, left)}
         r = self.raw(relative(features, self.base, self.keys))
