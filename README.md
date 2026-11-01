@@ -183,6 +183,7 @@ One screen, kept deliberately simple:
 | Alarm banner | **Red DANGER** with a pulsing red screen edge and fast beep: readings far from normal, two or more sensors far off, low water, or no data. **Amber WARNING** with a slower beep: readings drifting, or one sensor far from normal. **Blue SIMULATED**: the numbers aren't from a real pump. **Silence** stops the beep only. Browsers allow sound only after the first click, except the Pi's kiosk mode. |
 | Header | Overall status (Healthy / Warning / Critical / Low water / Learning / Standby), the data source (live, simulated or recorded) with the time since the last reading, and a theme switch. |
 | Pump health | A health gauge (0–100), the status in words and, when something is wrong, the **likely cause** with a suggested fix (e.g. *Outlet restriction / blockage (97%) — check the discharge valve and outlet line*). Also shows the pump state and the anomaly score. |
+| Time to failure | How long until a drifting sensor reaches its danger limit, with a likely range and a chart of the trend carried on to the limit. Says plainly when nothing is drifting, and that the data is made up when it is. See [Failure prediction](#failure-prediction). |
 | Sensor cards | Speed, pressure, motor current, temperature and vibration: live value, normal value, a one-minute sparkline, and a coloured dot (green / amber / red). |
 | Trend | The last 2 minutes of the anomaly score (with warning and critical lines) or any one sensor, with a hover readout. |
 | Controls | Fault buttons for the simulator (Normal, Blockage, Imbalance, Overload, Dry run), outlet valve slider, pump start/stop, pause, and the data-source picker. When no ESP32 is attached it says so. |
@@ -291,6 +292,37 @@ to `null` in `config.local.json`.
 To use another runtime (ONNX etc.), add a class with `.name`, `.kind` and
 `.score(features) -> (score, extras)` and return it from `load_scorer()`.
 
+## Failure prediction
+
+`backend/prognosis.py` fits a straight line to the recent history of vibration, temperature, current,
+pressure and speed, and extends it to the limit that raises the alarm (the learned normal ± 4 tolerances).
+It needs no flow sensor and no training data. The answer is in **running time**, so a stopped pump doesn't
+use up the estimate.
+
+A prediction only shows when the sensor is already a full tolerance from normal, is moving steadily (both
+halves of the fitted stretch at a similar rate), and that has held for 3 estimates in a row. A sudden jump
+that then stays flat is left to the alarms. Temperature is ignored for 30 minutes after each start, because
+a motor warming up looks exactly like a rising trend.
+
+**To see it:** run the simulator, wait out the 2 minutes of learning, and press **Gradual wear (demo)**. It
+squeezes bearing wear into minutes using made-up data, and the card counts down to the limit.
+
+Results from `python tools/test_prognosis.py`:
+
+| Test | Data | Result |
+|---|---|---|
+| Steady wear, 5 min to the limit | Synthetic | Warned 205–210 s ahead, average error 8 % |
+| Wear 10 times slower | Synthetic | Warned about 37 min ahead, average error 19 % |
+| Wear speeding up | Synthetic | Warned 225–280 s ahead, average error 55 %: it overestimates the time left |
+| 6 hours of normal running, sudden faults, 30 stops and starts | Synthetic | No predictions |
+| Healthy pump, 2.6 hours | Real (SKAB) | No predictions |
+
+**This has never been tested on a pump that actually wore out.** No such recording is in this project: SKAB's
+faults are sudden, not slow. The limit is an alarm limit, not a measured breaking point, so "time to failure"
+means time until a sensor reaches danger, and the pump may fail before or after that. Faults with no steady
+drift, such as a sudden seizure or a burst pipe, give no advance warning. The history is lost when the
+program restarts, so real wear over days or weeks needs it left running.
+
 ## Hardware-side contract (ESP32 firmware ⇄ Pi)
 
 **Transport:** USB CDC/UART, **115200 baud, 8N1**, no flow control, UTF-8.
@@ -375,6 +407,7 @@ without blocking, and prints one line per second. Pins:
 | Damaged data and broken sensors | `python tools/test_robustness.py` | 40,000 random or damaged messages, a pump unlike `config.py`, dead sensors, ESP32 reboots, the learning period, CSV failures |
 | Firmware logic, no board | `pip install ziglang`, then `python tools/test_firmware.py` | Runs the real sketch on a PC against simulated sensors, including sensors lost mid-run, and validates its output. Proves logic and arithmetic, not wiring or noise |
 | Real pump recordings | `python tools/fetch_skab.py`, then `python tools/test_realworld.py` | SKAB recordings through the whole pipeline, judged by whether a banner would show |
+| Failure prediction | `python tools/test_prognosis.py` | Warning time and error on synthetic wear, and no predictions on normal running, sudden faults, stops and starts, or real healthy SKAB data |
 | Long runs | `python tools/test_soak.py` | Boot noise on the serial line, 24 hours of data, `millis()` rollover, and a real server at 50 messages a second with one browser stalled |
 | Offline replay of logged data | `python tools/replay_eval.py data/sample_session.csv [--model models/iforest.json]` | Recomputes every window with the chosen scorer and prints the status mix, agreement with the logged status, and alerts |
 | Interactive replay | `python -m backend --source replay` | Streams a CSV through the live pipeline at the original timing |

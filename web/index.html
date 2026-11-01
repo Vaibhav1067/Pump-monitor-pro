@@ -94,6 +94,19 @@ main { max-width: var(--container); margin-inline: auto; padding: var(--space-lg
 .kpi .v small { font-size: var(--text-xs); color: var(--color-muted); margin-left: var(--space-2xs); }
 .kpi .d { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-muted); white-space: nowrap; }
 .kpi .d.warn { color: var(--color-accent); } .kpi .d.crit { color: var(--color-bad); }
+.pred { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: var(--space-md) var(--space-lg); align-items: center; }
+.pred p { margin-top: var(--space-2xs); max-width: 52ch; }
+#predWhen { font-family: var(--font-outlier); font-size: var(--text-xl); color: var(--color-ink); }
+#predWhen.warn { color: var(--color-accent); } #predWhen.crit { color: var(--color-bad); }
+#predChart { width: 100%; height: auto; display: block; }
+#predChart[hidden] { display: none; }
+.pl-limit { stroke: var(--color-bad); stroke-width: 1.5; stroke-dasharray: 2 4; }
+.pl-range { fill: var(--color-bad); opacity: 0.25; }
+.pl-now { stroke: var(--color-rule-2); stroke-width: 1; }
+.pl-data { fill: none; stroke: var(--color-ink); stroke-width: 2; }
+.pl-proj { stroke: var(--color-accent); stroke-width: 2; stroke-dasharray: 7 5; }
+.pl-label { font-size: 12px; fill: var(--color-muted); font-family: var(--font-outlier); } .pl-label.bad { fill: var(--color-bad); }
+@media (max-width: 760px) { .pred { grid-template-columns: minmax(0, 1fr); } }
 .kpi.health .v { font-size: var(--text-3xl); letter-spacing: -0.04em; line-height: 1; }
 .kpi.health .v span { font-size: 4.5rem; }
 .meter { display: grid; grid-template-columns: repeat(40, minmax(0, 1fr)); gap: var(--space-3xs); height: 12px; }
@@ -148,8 +161,8 @@ main { max-width: var(--container); margin-inline: auto; padding: var(--space-lg
 #devs { list-style: none; margin: 0; padding: 0; }
 #devs li { display: grid; grid-template-columns: minmax(0, 1fr) 72px 64px; gap: var(--space-sm); align-items: center; min-height: 32px; }
 #devs li + li { border-top: var(--rule-hair) solid var(--color-rule); }
-#devs .bar { height: 4px; background: var(--color-rule); position: relative; }
-#devs .bar i { position: absolute; inset: 0 auto 0 0; background: var(--color-accent); }
+#devs .dev-bar { height: 4px; background: var(--color-rule); position: relative; }
+#devs .dev-bar i { position: absolute; inset: 0 auto 0 0; background: var(--color-accent); }
 #devs .z { text-align: right; font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-ink-2); }
 
 /* ---------------------------------------------------------------- events as a trail */
@@ -344,6 +357,18 @@ body.is-stale .kpi .v, body.is-stale #chart .series, body.is-stale .strip { opac
     </div>
   </section>
 
+  <section class="panel" id="predictCard" aria-label="Time to failure">
+    <div class="panel-head"><h2>Time to failure</h2><span class="meta" id="predMeta">estimate from each sensor’s trend</span></div>
+    <div class="panel-body pred">
+      <div>
+        <div id="predWhen">Not known yet</div>
+        <p id="predText">The estimate starts once the pump’s normal running is known.</p>
+        <p id="predMore" class="muted"></p>
+      </div>
+      <svg id="predChart" viewBox="0 0 600 170" role="img" aria-label="Sensor trend extended to its danger limit" hidden></svg>
+    </div>
+  </section>
+
   <section class="panel" id="statusCard" aria-label="Status, last 2 minutes">
     <div class="panel-head"><h2>Status, last 2 minutes</h2><span class="meta">one cell per second, newest on the right</span></div>
     <div class="panel-body">
@@ -402,12 +427,12 @@ body.is-stale .kpi .v, body.is-stale #chart .series, body.is-stale .strip { opac
   </div>
 
   <details class="panel" id="detailsCard">
-    <summary><h2>Method and sensors</h2><span class="meta hide-sm">how the score is computed, the 12 features and the 7 sensors</span><span class="open"></span></summary>
+    <summary><h2>Method and sensors</h2><span class="meta hide-sm">how the score is computed, the 10 features and the 6 sensors</span><span class="open"></span></summary>
     <div class="dgrid">
       <div>
         <h3>Method</h3>
-        <p>The ESP32 samples seven sensors once a second and streams them to the Raspberry Pi 5. The Pi keeps the last
-          <span id="winN" class="num">5</span> samples, extracts 12 features and scores their distance from normal running.</p>
+        <p>The ESP32 samples six sensors once a second and streams them to the Raspberry Pi 5. The Pi keeps the last
+          <span id="winN" class="num">5</span> samples, extracts 10 features and scores their distance from normal running.</p>
         <pre class="formula" id="formula"></pre>
         <p id="scorerName"></p>
         <h3>Data link</h3>
@@ -570,7 +595,7 @@ critical score > ${st.crit}`;
 /* ====================================================================== render */
 const render = {
   all() { this.frame(); this.state(); this.events(); },
-  frame() { this.header(); this.kpis(); this.strip(); drawTrend(); this.diag(); this.details(); this.issues(); this.alarm(); },
+  frame() { this.header(); this.kpis(); this.predict(); this.strip(); drawTrend(); this.diag(); this.details(); this.issues(); this.alarm(); },
   state() { this.controls(); this.links(); this.header(); this.issues(); this.alarm(); },
 
   alarm() {
@@ -629,6 +654,29 @@ const render = {
     }
   },
 
+  predict() {
+    const f = store.last, p = f?.prognosis, s = store.state;
+    if (!p) return;
+    const live = s?.source_live, on = p.state === "trending" || p.state === "reached";
+    const When = { learning: "Learning normal", collecting: "Watching for trends", stable: "No failure predicted", trending: `About ${span(p.eta_s)}`, reached: "Danger limit reached" };
+    const el = $("predWhen"); el.textContent = When[p.state];
+    el.className = p.state === "reached" ? "crit" : p.state === "trending" ? "warn" : "";
+    let text = "", more = "";
+    if (p.state === "learning") text = "The estimate starts once the pump’s normal running is known.";
+    if (p.state === "collecting") text = `Needs about ${span(p.left_s)} more running to see a trend.`;
+    if (p.state === "stable") text = "No sensor is drifting towards its danger limit. A sudden fault gives no advance warning; the alarms cover that.";
+    if (p.state === "trending") {
+      text = `until ${p.word} reaches its danger limit of ${fmt(p.limit, p.dp)} ${p.unit}, if it keeps changing at this rate. Likely ${span(p.eta_lo_s)} to ${span(p.eta_hi_s)} of running.`;
+      more = "Inspect the pump before then. This is an estimate from the trend, not a guarantee.";
+    }
+    if (p.state === "reached") { text = `${p.word[0].toUpperCase()}${p.word.slice(1)} has passed its danger limit of ${fmt(p.limit, p.dp)} ${p.unit}.`; more = "Inspect the pump now."; }
+    if (on && p.others.length) more = `Also heading for a limit: ${p.others.map((o) => `${o.word} in about ${span(o.eta_s)}`).join(", ")}. ${more}`;
+    if (on && !f.running) more = `The countdown is paused while the pump is stopped. ${more}`;
+    $("predText").textContent = text; $("predMore").textContent = more;
+    $("predMeta").textContent = !s ? "" : live ? "estimate from each sensor’s trend" : "made-up data, for demonstration only";
+    drawPrediction(on ? p : null);
+  },
+
   strip() {
     const fr = store.frames, cells = $("strip").children, off = UI.trendLen - fr.length;
     for (let i = 0; i < UI.trendLen; i++) {
@@ -656,7 +704,7 @@ const render = {
     $("diagTitle").textContent = title; $("diagText").textContent = text;
     if (!f?.z) { $("devs").innerHTML = `<li><span class="muted">No score yet</span></li>`; return; }
     const top = store.cfg.features.map((x) => ({ x, z: f.z[x.key] })).sort((a, b) => Math.abs(b.z) - Math.abs(a.z)).slice(0, 6);
-    $("devs").innerHTML = top.map(({ x, z }) => `<li><span>${esc(x.label)}</span><span class="bar"><i style="width:${Math.min(100, Math.abs(z) / 8 * 100).toFixed(0)}%"></i></span><span class="z">${signed(z, 1, " σ")}</span></li>`).join("");
+    $("devs").innerHTML = top.map(({ x, z }) => `<li><span>${esc(x.label)}</span><span class="dev-bar"><i style="width:${Math.min(100, Math.abs(z) / 8 * 100).toFixed(0)}%"></i></span><span class="z">${signed(z, 1, " σ")}</span></li>`).join("");
   },
 
   controls() {
@@ -821,6 +869,33 @@ function findIssues() {
 const pageTitle = document.title;
 
 /* The most serious thing true right now, or null. Stale data is danger: the pump can't be seen. */
+const span = (s) => s < 60 ? `${Math.max(0, Math.round(s))} s` : s < 3600 ? `${Math.round(s / 60)} min` : s < 86400 ? `${(s / 3600).toFixed(1)} h` : `${(s / 86400).toFixed(1)} days`;
+
+/* History as measured, the same line carried on to the limit, and the likely range along the limit. */
+function drawPrediction(p) {
+  const svg = $("predChart");
+  svg.toggleAttribute("hidden", !p);     // SVG elements have no .hidden property
+  if (!p) return;
+  const W = 600, H = 170, L = 8, R = 8, T = 22, B = 22, h = p.history;
+  const t0 = h.length ? h[0][0] : -60, t1 = Math.max(p.eta_hi_s, 30) * 1.05;
+  const ys = [p.limit, p.normal, ...h.map((q) => q[1])], lo = Math.min(...ys), hi = Math.max(...ys), pad = (hi - lo) * 0.08 || 1;
+  const X = (t) => L + (t - t0) / (t1 - t0) * (W - L - R);
+  const Y = (v) => T + (hi + pad - v) / (hi - lo + 2 * pad) * (H - T - B);
+  const a = (x) => x.toFixed(1);
+  const line = h.map((q) => `${a(X(q[0]))},${a(Y(q[1]))}`).join(" ");
+  const anchor = p.state === "trending";
+  svg.innerHTML = `
+    <line class="pl-limit" x1="${L}" x2="${W - R}" y1="${a(Y(p.limit))}" y2="${a(Y(p.limit))}"/>
+    ${anchor ? `<rect class="pl-range" x="${a(X(p.eta_lo_s))}" width="${a(X(p.eta_hi_s) - X(p.eta_lo_s))}" y="${a(Y(p.limit) - 5)}" height="10"/>` : ""}
+    <line class="pl-now" x1="${a(X(0))}" x2="${a(X(0))}" y1="${T}" y2="${H - B}"/>
+    <polyline class="pl-data" points="${line}"/>
+    ${anchor ? `<line class="pl-proj" x1="${a(X(0))}" y1="${a(Y(p.now))}" x2="${a(X(p.eta_s))}" y2="${a(Y(p.limit))}"/>` : ""}
+    <text class="pl-label bad" x="${W - R}" y="${a(Y(p.limit) + (p.limit >= p.normal ? -8 : 16))}" text-anchor="end">danger limit ${fmt(p.limit, p.dp)} ${esc(p.unit)}</text>
+    <text class="pl-label" x="${a(X(0))}" y="${H - 6}" text-anchor="middle">now</text>
+    <text class="pl-label" x="${L}" y="${H - 6}">${span(-t0)} ago</text>
+    ${anchor ? `<text class="pl-label" x="${W - R}" y="${H - 6}" text-anchor="end">in ${span(t1)}</text>` : ""}`;
+}
+
 function findAlarm() {
   const s = store.state, f = store.last;
   if (!store.wsOpen) return store.everConnected ? { level: "crit", word: "DANGER", title: "The dashboard lost its connection", fix: "The pump is not being watched. Check that the start.bat window is still open." } : null;

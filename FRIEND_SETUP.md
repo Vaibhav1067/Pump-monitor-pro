@@ -86,6 +86,8 @@ Use the Pi's official power supply. Power the sensors' 5 V side properly too, be
 - **Restarting `start.bat` starts the learning again.** So does changing the data source.
 - **Check the alarms yourself.** Partly close the outlet valve and confirm you get a warning. Reopen it and confirm it clears.
 - **Expect some false alarms at first.** The model was trained on a different pump, so its accuracy on this one is unknown.
+- **Time to failure is an estimate.** It extends each sensor's trend to its danger limit and has not been tested on a pump that really wore out. Sudden faults give no advance warning. It restarts when the program restarts, so leave it running to catch slow wear.
+- **Let the pump warm up before it learns.** A motor still warming up can raise false temperature warnings. If that happens, press **Learn normal again** once it has been running about 30 minutes.
 - **Faults that mainly change water flow can be missed.** There is no flow sensor, so a partly blocked valve is only seen if pressure, current or vibration move too.
 
 ## If something goes wrong

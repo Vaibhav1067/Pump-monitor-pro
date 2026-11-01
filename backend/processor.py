@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 
 from .analytics import diagnose, engineering
 from .features import Window
+from .prognosis import Prognosis, duration
 from .schema import Invalid, parse_line
 from .scorer import standardise
 
@@ -40,6 +41,7 @@ class Processor:
         self.st = cfg["status"]
         self.feat_by_key = {f["key"]: f for f in cfg["features"]}
         self.window = Window(cfg["window"])
+        self.prognosis = Prognosis(cfg)
         self.reset_counters()
         self.reset()
 
@@ -49,6 +51,8 @@ class Processor:
         if hasattr(self.scorer, "reset"):
             self.scorer.reset()
         self.window.clear()
+        self.prognosis.reset()
+        self.predicted = None
         self.last_ts = None
         self.last_seq = None
         self.running = False
@@ -64,6 +68,8 @@ class Processor:
         """Forget the learned baseline of the running pump and learn it again."""
         if hasattr(self.scorer, "reset"):
             self.scorer.reset()
+        self.prognosis.reset()
+        self.predicted = None
         self.band = None
 
     def reset_counters(self):
@@ -163,11 +169,20 @@ class Processor:
                     health = round((1.0 - score) * 100)
 
         eng = engineering(r, features, running, self.cfg)
+        dt = 0.0
         if running and self._prev_run_ts is not None and 0 < r["ts"] - self._prev_run_ts <= 5000:
             dt = (r["ts"] - self._prev_run_ts) / 1000.0
             self.totals["run_s"] += dt
             self.totals["energy_wh"] += eng["p_in_w"] * dt / 3600.0
         self._prev_run_ts = r["ts"] if running else None
+
+        learning = getattr(self.scorer, "learning", False)
+        if score is not None and not learning and not inhibited and r["float"] == 1 and dt:
+            table = self.scorer.live_features() if hasattr(self.scorer, "live_features") else None
+            self.prognosis.push(features, {f["key"]: (f["mean"], f["scale"]) for f in table or self.cfg["features"]},
+                                dt, (r["ts"] - self.start_ts) / 1000.0)
+        prognosis = self.prognosis.report(learning)
+        self._prediction_alert(prognosis, alerts, now)
 
         learning_left = self.scorer.learning_left if getattr(self.scorer, "holds_alarms", False) else None
         if r["float"] == 0:
@@ -200,8 +215,20 @@ class Processor:
             "scorer": extras,
             "eng": eng,
             "diagnosis": diag,
+            "prognosis": prognosis,
             "totals": {k: round(v, 3) for k, v in self.totals.items()},
         }
+
+    def _prediction_alert(self, p, alerts, now):
+        """One event when a sensor starts heading for its limit, and one when that stops."""
+        who = p.get("sensor") if p["state"] in ("trending", "reached") else None
+        if who == self.predicted:
+            return
+        if who and p["state"] == "trending":
+            alerts.append(make_alert(now, "warn", f"Prediction: {p['word']} reaches its danger limit in about {duration(p['eta_s'])} of running"))
+        elif who is None and p["state"] == "stable":
+            alerts.append(make_alert(now, "info", "Prediction cleared: no sensor is heading for its limit"))
+        self.predicted = who
 
     def _band(self, score, latched=None):
         """Band for a score. Relative to the latched band, a lower band is only

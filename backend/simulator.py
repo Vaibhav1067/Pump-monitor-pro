@@ -21,6 +21,8 @@ class Simulator:
         self.pump_on = True         # commanded state
         self.tripped = False        # dry-run interlock latched
         self.float_low_for = 0.0
+        self.ramp_s = 0.0           # running time spent in a scenario that builds up gradually
+        self.ramp_hold = False      # no build-up while the pump's normal is being learned
         self.t_ms = 0
         self.seq = 0
         b = self.base
@@ -33,6 +35,7 @@ class Simulator:
         if name not in self.sc["scenarios"]:
             raise ValueError(f"unknown scenario {name}")
         self.scenario = name
+        self.ramp_s = 0.0
 
     def set_valve(self, pct):
         self.valve = max(0.0, min(1.0, float(pct) / 100.0))
@@ -57,8 +60,10 @@ class Simulator:
             return {"rpm": 0.0, "current_a": 0.0, "pressure_bar": 0.0,
                     "vib": self.sc["vib_off_g"], "temp_c": b["ambient_c"], "crest": self.sc["vib_crest"]}
 
+        p = min(1.0, self.ramp_s / s["ramp_s"]) ** s.get("ramp_power", 1.0) if "ramp_s" in s else 1.0
+
         def apply(base_val, key):
-            return base_val * s.get(f"{key}_mul", 1.0) + s.get(f"{key}_add", 0.0)
+            return base_val * (1.0 + (s.get(f"{key}_mul", 1.0) - 1.0) * p) + s.get(f"{key}_add", 0.0) * p
 
         t = {
             "rpm": apply(b["rpm"], "rpm"),
@@ -88,6 +93,8 @@ class Simulator:
                 self.tripped = True
         else:
             self.float_low_for = 0.0
+        if self.running and not self.ramp_hold:
+            self.ramp_s += dt
 
         tgt = self._targets()
         tau = self.sc["tau_s"]
