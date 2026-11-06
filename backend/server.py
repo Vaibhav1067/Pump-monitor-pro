@@ -112,7 +112,6 @@ class Hub:
         self.cfg["source"] = kind
         self._sync_scorer()
         self.processor.reset()
-        self.sim.ramp_s = 0.0
         self.alarm_mgr.clear()
         self.last_valid = None
         self.was_fresh = False
@@ -159,7 +158,6 @@ class Hub:
             return
         now = time.time()
         t0 = time.perf_counter()
-        self.sim.ramp_hold = getattr(self.scorer, "learning", False)   # wear must not be learned as normal
         try:
             res = self.processor.ingest(line, now)
         except Exception as e:      # one bad message must never stop the stream
@@ -364,7 +362,6 @@ class Hub:
                 await self.set_source("replay")
         elif cmd == "relearn":
             self.processor.relearn()
-            self.sim.ramp_s = 0.0
             await self._alert(make_alert(time.time(), "info", "Learning this pump's normal running again"))
         elif cmd == "reset_counters":
             self.processor.reset_counters()

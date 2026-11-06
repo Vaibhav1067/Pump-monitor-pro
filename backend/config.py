@@ -131,31 +131,6 @@ CONFIG = {
         "channel_z_crit": 4.0,
     },
 
-    # ------------------------------------------------------------------ failure prediction
-    # Straight-line trend of each sensor, extended to the limit at channel_z_crit tolerances.
-    "prognosis": {
-        "bucket_s": 5,            # readings are averaged over this long before fitting
-        "max_points": 240,        # history kept per sensor
-        "min_points": 12,         # shortest stretch fitted (1 minute at 5 s)
-        "min_t": 5.0,             # slope must be this many standard errors from zero
-        "level_z": 1.0,           # and the sensor already this many tolerances from normal
-        "half_ratio": 0.5,        # both halves of the stretch must move at least this share of the rate
-        "confirm": 3,             # estimates in a row before a prediction shows or clears
-        "max_eta_s": 2592000,     # further than 30 days of running is not reported
-        "speedup_ratio": 1.5,     # second half faster than this: use a shorter, more recent stretch
-        "ci_t": 2.0,              # range shown = slope +/- this many standard errors
-        "range_margin": 0.3,      # and always at least this share either side of the estimate
-        # dir: 1 only upward counts, -1 only downward, 0 either way
-        # settle_s: ignored this long after a start. A motor warming up looks exactly like a rising trend.
-        "channels": [
-            {"id": "vib", "feature": "vib_rms", "dir": 1, "word": "vibration", "unit": "g", "dp": 3},
-            {"id": "temp", "feature": "temp_mean", "dir": 1, "settle_s": 1800, "word": "temperature", "unit": "°C", "dp": 1},
-            {"id": "current", "feature": "current_rms", "dir": 0, "word": "current", "unit": "A", "dp": 2},
-            {"id": "pressure", "feature": "pressure_mean", "dir": 0, "word": "pressure", "unit": "bar", "dp": 2},
-            {"id": "hall", "feature": "rpm_mean", "dir": -1, "word": "speed", "unit": "rpm", "dp": 0},
-        ],
-    },
-
     # ------------------------------------------------------------------ engineering values
     "engineering": {
         "supply_v": 230.0,            # CAL: motor supply voltage (single-phase AC assumed)
@@ -241,13 +216,6 @@ CONFIG = {
                 "label": "Overload", "signature": "RPM ↓, Current ↑↑, Temp ↑",
                 "rpm_add": -180, "current_add": 1.2, "temp_add": 12.0,
                 "pressure_add": -0.3, "vib_add": 0.05,
-            },
-            # Synthetic: weeks of bearing wear squeezed into minutes, to show the failure prediction.
-            # Adjustments build up over ramp_s of running instead of applying at once.
-            "wear": {
-                "label": "Gradual wear (demo)", "signature": "Vibration, Current and Temp creep up: shows time to failure",
-                "ramp_s": 600, "ramp_power": 1.0,
-                "vib_mul": 3.0, "current_add": 0.6, "temp_add": 8.0, "rpm_add": -25,
             },
             "dry_run": {
                 "label": "Dry run", "signature": "Float LOW → Current ↓, pump trips",
