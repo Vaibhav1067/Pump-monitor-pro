@@ -51,6 +51,7 @@ class Processor:
         self.window.clear()
         self.last_ts = None
         self.last_seq = None
+        self.rejected_since_valid = 0
         self.running = False
         self.start_ts = None
         self.status = None
@@ -86,7 +87,9 @@ class Processor:
             c["invalid"] += 1
             c["invalid_by_reason"][e.reason] = c["invalid_by_reason"].get(e.reason, 0) + 1
             c["last_invalid"] = {"t": now, "reason": e.reason, "detail": e.detail}
+            self.rejected_since_valid += 1
             return {"ok": False, "reason": e.reason, "detail": e.detail}
+        self.rejected_since_valid = 0
         c["valid"] += 1
         frame = self._process(r, now, alerts)
         return {"ok": True, "frame": frame, "alerts": alerts}
@@ -102,13 +105,14 @@ class Processor:
             self.start_ts = ts      # the old value is from before the clock restarted: alarms would stay inhibited
             self.last_seq = None
         elif self.last_ts is not None:
+            # Messages that arrived but were rejected are already counted as invalid, not lost.
             if "seq" in r and self.last_seq is not None and r["seq"] > self.last_seq:
-                self.counters["dropped"] += r["seq"] - self.last_seq - 1
+                self.counters["dropped"] += max(0, r["seq"] - self.last_seq - 1 - self.rejected_since_valid)
             elif "seq" not in r:
                 period = link["expected_interval_s"] * 1000
                 gap = ts - self.last_ts
                 if gap > 1.5 * period:
-                    self.counters["dropped"] += int(round(gap / period)) - 1
+                    self.counters["dropped"] += max(0, int(round(gap / period)) - 1 - self.rejected_since_valid)
         self.last_ts = ts
         self.last_seq = r.get("seq")
 

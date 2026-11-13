@@ -769,6 +769,9 @@ function fixForReject(reason, detail) {
   }
   if (reason === "range") {
     const field = d.split("=")[0];
+    // An RMS value can't be negative: the board is sending raw acceleration, so it runs some other sketch.
+    if (/^vib_[xyz]$/.test(field) && parseFloat(d.split("=")[1]) < 0)
+      return { title: `The ESP32 is not running this project's firmware (${d})`, fix: "Vibration must be an RMS value, never negative. Re-flash the ESP32 with flash.bat, then restart the dashboard." };
     return { title: `Reading out of range: ${d}`, fix: `Check the wiring and calibration of the ${FIELD_SENSOR[field] || field}. 5 V sensors must go through a voltage divider.` };
   }
   if (reason === "missing" || reason === "type") return { title: `The ESP32 sends an unexpected message format (${reason}: ${d})`, fix: "Its firmware is older or different. Re-flash it with flash.bat so it matches this dashboard." };
